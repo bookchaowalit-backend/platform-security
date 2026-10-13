@@ -1,4 +1,4 @@
-# book-security-platform
+# platform-security
 
 `Security` platform boundary for the Book Platform portfolio.
 
@@ -12,8 +12,8 @@ provider integration, database writer, credential, or customer payload.
 ## Boundary
 
 - Owner: `bookchaowalit-backend`
-- Repository: `book-security-platform`
-- Target remote: `https://github.com/bookchaowalit-backend/book-security-platform.git` (not created by the bootstrap)
+- Repository: `platform-security`
+- Target remote: `https://github.com/bookchaowalit-backend/platform-security.git` (not created by the bootstrap)
 - Contract: `book-platform.contract.v1`
 - Status: `scaffolded`
 - Data owner: the platform boundary identified in `contract.json`

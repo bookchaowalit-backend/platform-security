@@ -1,10 +1,10 @@
 {
   "schema_version": "book-platform.contract.v1",
   "platform_id": "security",
-  "repository": "book-security-platform",
+  "repository": "platform-security",
   "status": "scaffolded",
   "api_version": "v1",
-  "data_owner": "book-security-platform",
+  "data_owner": "platform-security",
   "capabilities": ["platform-api", "health", "contract"],
   "depends_on": [],
   "current_implementation": {
