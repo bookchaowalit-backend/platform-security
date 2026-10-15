@@ -1,0 +1,10 @@
+{
+  "schema_version": "platform-security.privacy-class.v1",
+  "classes": [
+    {"id": "public", "rank": 0, "description": "Published data, e.g. public profile and skills routes.", "log_policy": "allow", "audit_metadata": "allow", "storage": "plaintext"},
+    {"id": "internal", "rank": 1, "description": "Operational metadata with no personal, finance or client content.", "log_policy": "allow", "audit_metadata": "allow", "storage": "plaintext"},
+    {"id": "confidential", "rank": 2, "description": "Business data whose values are redacted from logs and audit metadata.", "log_policy": "redact", "audit_metadata": "redact", "storage": "encrypted"},
+    {"id": "restricted", "rank": 3, "description": "Personal, finance or client records; never written to logs or audit metadata.", "log_policy": "deny", "audit_metadata": "deny", "storage": "encrypted"},
+    {"id": "secret", "rank": 4, "description": "Credentials; stored only as provider references, never as values.", "log_policy": "deny", "audit_metadata": "deny", "storage": "reference_only"}
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/privacy-class.schema.json",
+  "title": "Privacy class policy",
+  "description": "Ordered privacy classes and how data of each class may appear in logs, audit metadata and storage. PROPOSED contract for BOO-163.",
+  "x-contract": "platform-security.privacy-class.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "classes"],
+  "properties": {
+    "schema_version": {"const": "platform-security.privacy-class.v1"},
+    "classes": {
+      "type": "array",
+      "minItems": 5,
+      "items": {"$ref": "#/$defs/class"}
+    }
+  },
+  "$defs": {
+    "class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rank", "description", "log_policy", "audit_metadata", "storage"],
+      "properties": {
+        "id": {"enum": ["public", "internal", "confidential", "restricted", "secret"]},
+        "rank": {"type": "integer", "minimum": 0},
+        "description": {"type": "string", "minLength": 1, "maxLength": 300},
+        "log_policy": {"enum": ["allow", "redact", "deny"]},
+        "audit_metadata": {"enum": ["allow", "redact", "deny"]},
+        "storage": {"enum": ["plaintext", "encrypted", "reference_only"]}
+      }
+    }
+  }
+}

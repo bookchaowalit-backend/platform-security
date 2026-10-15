@@ -1,0 +1,38 @@
+{
+  "schema_version": "platform-security.permission.v1",
+  "default": "deny",
+  "roles": [
+    {"id": "owner", "description": "Tenant owner; full administration, never resolves secret values.", "principal_types": ["user"]},
+    {"id": "admin", "description": "Delegated administrator; cannot close or suspend the tenant.", "principal_types": ["user"]},
+    {"id": "operator", "description": "Day-to-day operator; manages references and uses APIs.", "principal_types": ["user"]},
+    {"id": "auditor", "description": "Read-only reviewer of policy, references and audit.", "principal_types": ["user"]},
+    {"id": "viewer", "description": "Read-only API consumer.", "principal_types": ["user"]},
+    {"id": "service", "description": "Server-side workload; the only role that may resolve a secret reference or append audit.", "principal_types": ["service"]}
+  ],
+  "actions": [
+    {"id": "tenant:read", "capability": "tenant", "mutates": false},
+    {"id": "tenant:manage", "capability": "tenant", "mutates": true, "description": "Suspend, close or rename a tenant."},
+    {"id": "policy:read", "capability": "policy", "mutates": false},
+    {"id": "policy:manage", "capability": "policy", "mutates": true, "description": "Grant or revoke role bindings."},
+    {"id": "secret_reference:read", "capability": "secret-reference", "mutates": false, "legacy_scopes": ["references:read"]},
+    {"id": "secret_reference:write", "capability": "secret-reference", "mutates": true, "legacy_scopes": ["references:write"]},
+    {"id": "secret_reference:delete", "capability": "secret-reference", "mutates": true},
+    {"id": "secret_reference:resolve", "capability": "secret-reference", "mutates": false, "description": "Server-side resolution of a reference to its value; never exposed over HTTP."},
+    {"id": "audit:read", "capability": "audit", "mutates": false, "legacy_scopes": ["audit:read"]},
+    {"id": "audit:append", "capability": "audit", "mutates": true, "legacy_scopes": ["audit:write"], "description": "Append only; there is no update or delete action."},
+    {"id": "privacy:read", "capability": "privacy", "mutates": false},
+    {"id": "privacy:classify", "capability": "privacy", "mutates": true},
+    {"id": "api:read", "capability": "api", "mutates": false, "legacy_scopes": ["api:read"]},
+    {"id": "api:write", "capability": "api", "mutates": true, "legacy_scopes": ["api:write"]},
+    {"id": "finance:read", "capability": "api", "mutates": false, "legacy_scopes": ["finance:read"]},
+    {"id": "ai:generate", "capability": "api", "mutates": true, "legacy_scopes": ["ai:generate"]}
+  ],
+  "matrix": {
+    "owner": ["tenant:read", "tenant:manage", "policy:read", "policy:manage", "secret_reference:read", "secret_reference:write", "secret_reference:delete", "audit:read", "privacy:read", "privacy:classify", "api:read", "api:write", "finance:read", "ai:generate"],
+    "admin": ["tenant:read", "policy:read", "policy:manage", "secret_reference:read", "secret_reference:write", "secret_reference:delete", "audit:read", "privacy:read", "privacy:classify", "api:read", "api:write", "finance:read", "ai:generate"],
+    "operator": ["tenant:read", "policy:read", "secret_reference:read", "secret_reference:write", "audit:read", "privacy:read", "api:read", "api:write", "ai:generate"],
+    "auditor": ["tenant:read", "policy:read", "secret_reference:read", "audit:read", "privacy:read"],
+    "viewer": ["tenant:read", "api:read"],
+    "service": ["secret_reference:resolve", "audit:append", "api:read", "api:write", "finance:read", "ai:generate"]
+  }
+}

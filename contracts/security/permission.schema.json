@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/permission.schema.json",
+  "title": "Permission policy (role to action matrix)",
+  "description": "Deny-by-default role -> action matrix. Cross-references (matrix roles/actions exist, secret resolution only for service principals, no audit mutation action) are enforced by scripts/security_contracts.py. PROPOSED contract for BOO-163.",
+  "x-contract": "platform-security.permission.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "default", "roles", "actions", "matrix"],
+  "properties": {
+    "schema_version": {"const": "platform-security.permission.v1"},
+    "default": {"const": "deny"},
+    "roles": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/role"}},
+    "actions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/action"}},
+    "matrix": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {"type": "string", "pattern": "^[a-z][a-z_]{0,31}:[a-z][a-z_]{0,31}$"}
+      }
+    }
+  },
+  "$defs": {
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "principal_types"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z_]{0,31}$"},
+        "description": {"type": "string", "minLength": 1, "maxLength": 200},
+        "principal_types": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["user", "service"]}}
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "capability", "mutates"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z_]{0,31}:[a-z][a-z_]{0,31}$"},
+        "capability": {"enum": ["tenant", "policy", "secret-reference", "audit", "privacy", "api"]},
+        "mutates": {"type": "boolean"},
+        "legacy_scopes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z_.-]{0,31}:[a-z][a-z_.-]{0,31}$"}},
+        "description": {"type": "string", "maxLength": 200}
+      }
+    }
+  }
+}

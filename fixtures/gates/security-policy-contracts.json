@@ -1,0 +1,43 @@
+{
+  "schema_version": "platform-security.gate-evidence.v1",
+  "issue": "BOO-163",
+  "system_id": "security-identity",
+  "next_gate": "Define tenant, permission, secret-reference, audit, and privacy policy contracts.",
+  "contract": "systems/architecture/solo-empire-api-contract-v1.md#authentication-classes",
+  "owner_decision": "proposed-not-accepted",
+  "contract_json_capabilities": {
+    "secret-reference": {"schema": "contracts/security/secret-reference.schema.json", "status": "defined"},
+    "policy": {"schema": "contracts/security/permission.schema.json", "instance": "contracts/security/permission-matrix.json", "status": "defined"},
+    "audit": {"schema": "contracts/security/audit-event.schema.json", "status": "defined"},
+    "privacy": {"schema": "contracts/security/privacy-class.schema.json", "instance": "contracts/security/privacy-classes.json", "status": "defined"},
+    "waf-controls": {"schema": null, "status": "out-of-scope", "reason": "Not named by the BOO-163 gate; rate limiting/WAF remains a gap in the API contract's operational limits table."}
+  },
+  "gate_contracts": {
+    "tenant": "contracts/security/tenant.schema.json",
+    "permission": "contracts/security/permission.schema.json",
+    "secret-reference": "contracts/security/secret-reference.schema.json",
+    "audit-event": "contracts/security/audit-event.schema.json",
+    "privacy-class": "contracts/security/privacy-class.schema.json"
+  },
+  "authentication_classes": [
+    {"class": "public-read", "control": "CORS allowlist and public-field review; no write token", "privacy_class": "public", "role": null},
+    {"class": "bearer-protected", "control": "Authorization: Bearer <token>; least-privilege scopes", "privacy_class": "confidential", "role": "matrix"},
+    {"class": "signed-webhook", "control": "x-line-signature or stripe-signature verified on the raw body", "privacy_class": "confidential", "role": "service"}
+  ],
+  "legacy_bearer_scopes": ["finance:read", "api:read", "api:write", "ai:generate"],
+  "pr1_runtime_scopes": ["references:read", "references:write", "audit:read", "audit:write"],
+  "secret_providers": {
+    "env": {"source": "solo-empire@99ddc05c:infra/scripts/utils/secret_resolver.py:225 (EnvProvider); PR #1 store.py reference() 'env'"},
+    "infisical": {"source": "solo-empire@99ddc05c:infra/scripts/utils/secret_resolver.py:235 (InfisicalProvider)"},
+    "vault": {"source": "solo-empire@99ddc05c:infra/scripts/utils/secret_resolver.py:348 (VaultProvider); PR #1 store.py reference() 'vault'"},
+    "aws-sm": {"source": "PR #1 store.py reference() 'aws' and migration CHECK(provider IN ('env','vault','aws'))"}
+  },
+  "provider_aliases": {"infisical-api": "infisical", "infisical-cli": "infisical", "hashicorp-vault": "vault", "aws": "aws-sm"},
+  "invariants": [
+    "secret-reference carries provider://path#version only; a value field or secret-looking literal is invalid",
+    "secret_reference:resolve and audit:append are granted only to service-only roles",
+    "permission policy is deny-by-default",
+    "audit events require tenant_id and actor; no audit update/delete action exists",
+    "secret-class data is never written to logs or audit metadata; restricted is denied, confidential is redacted"
+  ]
+}
