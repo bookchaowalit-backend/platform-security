@@ -29,28 +29,24 @@ class SecurityStore:
         identifier(name);reference(provider,ref)
         if not isinstance(purpose,str) or not re.fullmatch(r'[A-Za-z0-9 .,()_-]{1,160}',purpose):raise ValueError('Invalid purpose')
         if rotated_at is not None and (not isinstance(rotated_at,datetime) or rotated_at.tzinfo is None):raise ValueError('Invalid rotation')
-        with self.db.transaction(workspace) as c:
-            c.row_factory=dict_row
+        with self.db.transaction(workspace) as conn, conn.cursor(row_factory=dict_row) as c:
             return c.execute('INSERT INTO secret_references VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT(workspace_id,name) DO UPDATE SET provider=EXCLUDED.provider,reference=EXCLUDED.reference,purpose=EXCLUDED.purpose,rotated_at=EXCLUDED.rotated_at RETURNING name,provider,reference,purpose,rotated_at',(workspace,name,provider,ref,purpose,rotated_at)).fetchone()
     def list_references(self,workspace,limit=100,after=''):
         if not 1<=limit<=100:raise ValueError('Invalid limit')
-        with self.db.transaction(workspace) as c:
-            c.row_factory=dict_row
+        with self.db.transaction(workspace) as conn, conn.cursor(row_factory=dict_row) as c:
             return c.execute('SELECT name,provider,reference,purpose,rotated_at FROM secret_references WHERE name>%s ORDER BY name LIMIT %s',(after,limit)).fetchall()
     def append(self,workspace,actor,key,action,target):
         identifier(action);identifier(target)
         if not isinstance(actor,UUID) or not isinstance(key,str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',key):raise ValueError('Invalid event')
         fingerprint=hashlib.sha256(json.dumps([str(actor),action,target],separators=(',',':')).encode()).hexdigest()
-        with self.db.transaction(workspace) as c:
-            c.row_factory=dict_row
+        with self.db.transaction(workspace) as conn, conn.cursor(row_factory=dict_row) as c:
             c.execute('INSERT INTO security_audit(workspace_id,id,actor,event_key,fingerprint,action,target) VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(workspace_id,event_key) DO NOTHING',(workspace,uuid4(),actor,key,fingerprint,action,target))
             row=c.execute('SELECT id,actor,action,target,created_at,fingerprint FROM security_audit WHERE event_key=%s',(key,)).fetchone()
             if row.pop('fingerprint')!=fingerprint:raise Conflict()
             return row
     def list_audit(self,workspace,limit=100,after=None):
         if not 1<=limit<=100:raise ValueError('Invalid limit')
-        with self.db.transaction(workspace) as c:
-            c.row_factory=dict_row
+        with self.db.transaction(workspace) as conn, conn.cursor(row_factory=dict_row) as c:
             return c.execute('SELECT id,actor,action,target,created_at FROM security_audit WHERE (%s::uuid IS NULL OR id>%s::uuid) ORDER BY id LIMIT %s',(after,after,limit)).fetchall()
     def ready(self):
         with self.db.transaction(UUID(int=0)) as c:
