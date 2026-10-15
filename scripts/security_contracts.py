@@ -184,8 +184,11 @@ def _entropy(token: str) -> float:
     return -sum(n / len(token) * math.log2(n / len(token)) for n in counts.values())
 
 
-def is_secret_like(value: str) -> bool:
-    """True when a string looks like a literal credential rather than a reference."""
+def is_secret_like(value: str, *, allow_hex: bool = False) -> bool:
+    """True when a string looks like a literal credential rather than a reference.
+
+    allow_hex skips the long-hex rule for identifier fields whose schema permits
+    hex ids (e.g. a 32-hex W3C trace id as request_id); all other rules still apply."""
     if not isinstance(value, str) or not value:
         return False
     if _PEM.search(value) or _JWT.search(value) or _URL_CREDENTIALS.search(value) or _BEARER.search(value):
@@ -193,7 +196,7 @@ def is_secret_like(value: str) -> bool:
     for token in re.split(r"[\s/#:=,;\"']+", value):
         if any(token.startswith(prefix) for prefix in _SECRET_PREFIXES) and len(token) >= 12:
             return True
-        if _HEX.fullmatch(token):
+        if not allow_hex and _HEX.fullmatch(token):
             return True
         if len(token) >= 24:
             classes = sum(bool(re.search(p, token)) for p in (r"[a-z]", r"[A-Z]", r"[0-9]"))
@@ -306,11 +309,19 @@ def audit_event_errors(event: Any, privacy_policy: dict[str, Any] | None = None)
     errors = schema_errors(event, load_schema("audit-event"))
     if not isinstance(event, dict):
         return errors
-    scanned = {k: v for k, v in event.items() if k != "prev_hash"}  # a chain hash is not a credential
-    for text in _strings(scanned):
-        if is_secret_like(text):
-            errors.append("audit event contains a secret-looking literal")
-            break
+    # prev_hash is a chain hash; request_id, idempotency_key and target.id are
+    # schema-valid identifiers that may be hex (trace ids, content hashes).
+    id_fields = {"request_id", "idempotency_key"}
+    scanned = {k: v for k, v in event.items() if k not in id_fields | {"prev_hash", "target"}}
+    ids = [event.get(k) for k in id_fields]
+    target = event.get("target")
+    if isinstance(target, dict):
+        scanned["target"] = {k: v for k, v in target.items() if k != "id"}
+        ids.append(target.get("id"))
+    if any(is_secret_like(t) for t in _strings(scanned)) or any(
+        isinstance(t, str) and is_secret_like(t, allow_hex=True) for t in ids
+    ):
+        errors.append("audit event contains a secret-looking literal")
     if privacy_policy is not None and event.get("metadata"):
         rules = {c["id"]: c for c in privacy_policy["classes"]}
         rule = rules.get(event.get("privacy_class"), {})
@@ -324,6 +335,8 @@ def audit_event_errors(event: Any, privacy_policy: dict[str, Any] | None = None)
 def redact_audit_metadata(event: dict[str, Any], privacy_policy: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of the event whose metadata follows the privacy policy."""
     rules = {c["id"]: c for c in privacy_policy["classes"]}
+    if event.get("privacy_class") not in rules:
+        raise ContractError([f"$.privacy_class: unknown privacy class {event.get('privacy_class')!r}"])
     mode = rules[event["privacy_class"]]["audit_metadata"]
     copy = json.loads(json.dumps(event))
     if "metadata" in copy:
@@ -347,6 +360,12 @@ class AuditLog:
         self._keys: dict[tuple[str, str], str] = {}
 
     def append(self, event: dict[str, Any]) -> dict[str, Any]:
+        # Validate the event's shape before redaction so a missing or unknown
+        # privacy_class (or any schema violation) raises ContractError, never KeyError.
+        candidate = {k: v for k, v in event.items() if k != "prev_hash"} if isinstance(event, dict) else event
+        shape_errors = schema_errors(candidate, load_schema("audit-event"))
+        if shape_errors:
+            raise ContractError(shape_errors)
         event = redact_audit_metadata(event, self._privacy)
         event.pop("prev_hash", None)
         if self._events:

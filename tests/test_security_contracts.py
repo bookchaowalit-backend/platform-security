@@ -43,6 +43,12 @@ def secret_looking_samples() -> list[str]:
     ]
 
 
+def assert_reason(test: unittest.TestCase, errors: list[str], case: dict) -> None:
+    """Each invalid fixture must fail for its stated reason, not just fail."""
+    test.assertTrue(case.get("expect"), f"invalid fixture without expect: {case['why']}")
+    test.assertTrue(any(case["expect"] in e for e in errors), (case["why"], case["expect"], errors))
+
+
 def valid_ref() -> dict:
     return copy.deepcopy(fixture("secret-references.json")["valid"][1])
 
@@ -105,7 +111,7 @@ class TenantTests(unittest.TestCase):
         for doc in data["valid"]:
             self.assertEqual(sc.tenant_errors(doc), [], doc["slug"])
         for case in data["invalid"]:
-            self.assertNotEqual(sc.tenant_errors(case["doc"]), [], case["why"])
+            assert_reason(self, sc.tenant_errors(case["doc"]), case)
 
 
 class PermissionTests(unittest.TestCase):
@@ -152,7 +158,7 @@ class SecretReferenceTests(unittest.TestCase):
 
     def test_invalid_fixtures(self):
         for case in fixture("secret-references.json")["invalid"]:
-            self.assertNotEqual(sc.secret_reference_errors(case["doc"]), [], case["why"])
+            assert_reason(self, sc.secret_reference_errors(case["doc"]), case)
 
     def test_rejects_literal_secret_as_ref(self):
         for literal in secret_looking_samples():
@@ -195,7 +201,7 @@ class AuditTests(unittest.TestCase):
 
     def test_invalid_fixtures(self):
         for case in fixture("audit-events.json")["invalid"]:
-            self.assertNotEqual(sc.audit_event_errors(case["doc"], PRIVACY), [], case["why"])
+            assert_reason(self, sc.audit_event_errors(case["doc"], PRIVACY), case)
 
     def test_missing_actor_or_tenant_is_invalid(self):
         for field in ("actor", "tenant_id"):
@@ -205,6 +211,36 @@ class AuditTests(unittest.TestCase):
             self.assertIn(f"$: missing required field {field!r}", errors)
             with self.assertRaises(sc.ContractError):
                 sc.AuditLog(PRIVACY).append(doc)
+
+    def test_missing_or_unknown_privacy_class_raises_contract_error_on_append(self):
+        for bad in (None, "top-secret", "secret"):
+            doc = valid_event()
+            if bad is None:
+                del doc["privacy_class"]
+            else:
+                doc["privacy_class"] = bad
+            with self.assertRaises(sc.ContractError, msg=repr(bad)):
+                sc.AuditLog(PRIVACY).append(doc)
+            if bad != "secret":  # "secret" is a known class; only the audit schema forbids it
+                with self.assertRaises(sc.ContractError, msg=repr(bad)):
+                    sc.redact_audit_metadata(doc, PRIVACY)
+
+    def test_hex_identifiers_are_not_treated_as_secrets(self):
+        trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"  # W3C trace-context example id
+        content_hash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        doc = valid_event()
+        doc.update(request_id=trace_id, idempotency_key=trace_id)
+        doc["target"] = {"type": "audit_log", "id": content_hash}
+        self.assertEqual(sc.audit_event_errors(doc, PRIVACY), [])
+        self.assertEqual(sc.AuditLog(PRIVACY).append(doc)["request_id"], trace_id)
+
+    def test_hex_heuristic_still_applies_outside_identifier_fields(self):
+        doc = valid_event()
+        doc["metadata"] = {"blob": "0123456789abcdef" * 2}
+        self.assertTrue(any("secret-looking" in e for e in sc.audit_event_errors(doc, PRIVACY)))
+        doc = valid_event()
+        doc["request_id"] = "gh" + "p_" + "Q7wErT9yUiOp3AsDfGh5JkLz1234"
+        self.assertTrue(any("secret-looking" in e for e in sc.audit_event_errors(doc, PRIVACY)))
 
     def test_secret_in_metadata_is_rejected(self):
         doc = valid_event()

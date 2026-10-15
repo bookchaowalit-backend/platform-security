@@ -36,7 +36,7 @@ system's contract. These are the rules this gate carries forward from it:
 | privacy | `contracts/security/privacy-class.schema.json` | `contracts/security/privacy-classes.json` | `privacy_policy_errors`, `redact_audit_metadata` |
 
 Gate mapping fixture: `fixtures/gates/security-policy-contracts.json`.
-Tests: `tests/test_security_contracts.py` (29 tests). `bash scripts/check.sh` runs
+Tests: `tests/test_security_contracts.py` (32 tests). `bash scripts/check.sh` runs
 them, and `.github/workflows/check.yml` runs that script in hosted CI on
 Python 3.11 and 3.12.
 
@@ -46,7 +46,7 @@ Python 3.11 and 3.12.
 |---|---|---|
 | `contract.json:8` (`origin/main`) | capabilities `secret-reference`, `policy`, `audit`, `privacy` | secret-reference, permission, audit-event, privacy-class schemas |
 | `contract.json:8` | capability `waf-controls` | **out of scope**: the gate does not name it (gap G5) |
-| `contract.json:3` / `scripts/check.py:119` | `status: scaffolded` must stay | unchanged |
+| `contract.json:5` / `scripts/check.py:51-52` | `status: scaffolded` must stay | unchanged |
 | API contract, Authentication classes | Public read / Bearer protected / Signed webhook | `authentication_classes` in the gate fixture, each mapped to a privacy class |
 | API contract, Bearer protected | scopes `finance:read`, `api:read`, `api:write`, `ai:generate` | matrix actions with `legacy_scopes` of the same name |
 | `solo-empire@99ddc05c:infra/scripts/utils/secret_resolver.py:225` | `EnvProvider` (`env`) | provider `env` |
@@ -88,14 +88,25 @@ secret, `.env` file or credential store was read.
 
 ## Red / green proof
 
-- Red: `/home/bookchaowalit/linear-sprint-2026-10-15/BOO-163-red.log`. Two
+The log files are kept with the sprint run records, outside this repository.
+To reproduce, run `bash scripts/check.sh`.
+
+- Red: `BOO-163-red.log`. Two
   deliberate mutations were made: `actor` and `tenant_id` were removed from the
   audit `required` list, and `operator` was granted `secret_reference:resolve`.
   Four tests failed: `test_missing_actor_or_tenant_is_invalid`,
   `test_invalid_fixtures`, `test_shipped_policies_are_valid` and
   `test_only_service_resolves_secrets_and_appends_audit`.
-- Green: `/home/bookchaowalit/linear-sprint-2026-10-15/BOO-163-green.log`.
-- Full check: `/home/bookchaowalit/linear-sprint-2026-10-15/BOO-163-check.log`.
+- Red, review round 1 (appended to `BOO-163-red.log`): the new tests were run
+  against the pre-fix validator (`b2e06da`). Two failed:
+  - `test_missing_or_unknown_privacy_class_raises_contract_error_on_append`
+    raised a raw `KeyError`.
+  - `test_hex_identifiers_are_not_treated_as_secrets`: a 32-hex W3C trace id
+    used as `request_id` was rejected.
+- Since review round 1, each invalid fixture states an `expect` reason, and
+  the tests assert that this specific error fires.
+- Green: `BOO-163-green.log`.
+- Full check: `BOO-163-check.log`.
 
 ## Gaps
 
