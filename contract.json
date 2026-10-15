@@ -5,8 +5,8 @@
   "status": "scaffolded",
   "api_version": "v1",
   "data_owner": "platform-security",
-  "capabilities": ["platform-api", "health", "contract"],
-  "depends_on": [],
+  "capabilities": ["secret-reference", "policy", "audit", "waf-controls", "privacy"],
+  "depends_on": ["observability"],
   "current_implementation": {
     "repository": "solo-empire",
     "source_path": "infra/platform"
