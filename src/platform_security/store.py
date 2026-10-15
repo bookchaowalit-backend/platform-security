@@ -54,6 +54,15 @@ class SecurityStore:
             return c.execute('SELECT id,actor,action,target,created_at FROM security_audit WHERE (%s::uuid IS NULL OR id>%s::uuid) ORDER BY id LIMIT %s',(after,after,limit)).fetchall()
     def ready(self):
         with self.db.transaction(UUID(int=0)) as c:
+            # Check every operation individually: a comma privilege list means ANY.
+            required_permissions=c.execute("""SELECT has_schema_privilege(current_user,'public','USAGE')
+                AND has_table_privilege(current_user,'public.platform_schema_migrations','SELECT')
+                AND has_table_privilege(current_user,'public.secret_references','SELECT')
+                AND has_table_privilege(current_user,'public.secret_references','INSERT')
+                AND has_table_privilege(current_user,'public.secret_references','UPDATE')
+                AND has_table_privilege(current_user,'public.security_audit','SELECT')
+                AND has_table_privilege(current_user,'public.security_audit','INSERT')""").fetchone()[0]
+            if not required_permissions:return False
             history=c.execute('SELECT version,checksum FROM platform_schema_migrations WHERE namespace=%s ORDER BY version',('security',)).fetchall()
             if history!=[(m.version,m.checksum) for m in MIGRATIONS]:return False
             c.execute('SELECT name,provider,reference,purpose,rotated_at FROM secret_references LIMIT 0')
