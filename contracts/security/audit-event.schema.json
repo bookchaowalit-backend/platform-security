@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/audit-event.schema.json",
+  "title": "Audit event",
+  "description": "An append-only security audit record. Once written no field may change and no event may be deleted; corrections are new events. Every event names its tenant and its actor. Metadata is redacted per the privacy-class policy and never contains secret values. PROPOSED contract for BOO-163.",
+  "x-contract": "platform-security.audit-event.v1",
+  "x-append-only": true,
+  "x-immutable-fields": ["schema_version", "event_id", "tenant_id", "actor", "action", "target", "outcome", "occurred_at", "privacy_class", "request_id", "idempotency_key", "prev_hash", "metadata"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "tenant_id", "actor", "action", "target", "outcome", "occurred_at", "privacy_class"],
+  "properties": {
+    "schema_version": {"const": "platform-security.audit-event.v1"},
+    "event_id": {"type": "string", "format": "uuid"},
+    "tenant_id": {"type": "string", "format": "uuid"},
+    "actor": {"$ref": "#/$defs/actor"},
+    "action": {"type": "string", "pattern": "^[a-z][a-z_]{0,31}:[a-z][a-z_]{0,31}$"},
+    "target": {"$ref": "#/$defs/target"},
+    "outcome": {"enum": ["allowed", "denied", "error"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "privacy_class": {"enum": ["public", "internal", "confidential", "restricted"]},
+    "request_id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "prev_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metadata": {
+      "type": "object",
+      "maxProperties": 16,
+      "additionalProperties": {"type": "string", "maxLength": 256}
+    }
+  },
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["user", "service", "system"]},
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:@-]{1,128}$"},
+        "role": {"type": "string", "pattern": "^[a-z][a-z_]{0,31}$"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["tenant", "secret_reference", "role_binding", "audit_log", "privacy_policy", "api_route"]},
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_./:-]{1,128}$"}
+      }
+    }
+  }
+}

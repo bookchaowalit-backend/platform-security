@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/tenant.schema.json",
+  "title": "Tenant",
+  "description": "A workspace/tenant boundary. Every tenant-scoped record (secret reference, audit event) carries tenant_id and is isolated by it. PROPOSED contract for BOO-163; not accepted by the owner.",
+  "x-contract": "platform-security.tenant.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tenant_id", "slug", "status", "default_privacy_class", "created_at"],
+  "properties": {
+    "schema_version": {"const": "platform-security.tenant.v1"},
+    "tenant_id": {"type": "string", "format": "uuid"},
+    "slug": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "display_name": {"type": "string", "minLength": 1, "maxLength": 120},
+    "status": {"enum": ["active", "suspended", "closed"]},
+    "default_privacy_class": {"enum": ["public", "internal", "confidential", "restricted", "secret"]},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}
