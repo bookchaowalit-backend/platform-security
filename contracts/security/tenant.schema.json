@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/tenant.schema.json",
   "title": "Tenant",
-  "description": "A workspace/tenant boundary. Every tenant-scoped record (secret reference, audit event) carries tenant_id and is isolated by it. PROPOSED contract for BOO-163; not accepted by the owner.",
+  "description": "A workspace/tenant boundary. Every tenant-scoped record (secret reference, audit event) carries tenant_id and is isolated by it. Accepted contract for BOO-163 (owner decision 2026-10-16).",
   "x-contract": "platform-security.tenant.v1",
   "type": "object",
   "additionalProperties": false,

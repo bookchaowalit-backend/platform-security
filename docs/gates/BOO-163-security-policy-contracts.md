@@ -144,10 +144,12 @@ This accepts the contracts themselves:
 Nothing has been applied to any runtime, registry or production system, and
 the `contract.json` status stays `scaffolded`. There is no cutover.
 
-### Still open (not decided by the owner)
+### Still open (not covered by the accepted option)
 
-The owner was not asked to decide the following, so each remains a follow-up
-or gap:
+Proposed items 4 and 5 (runtime conformance, successor contract doc and
+registry `source_paths`, `waf-controls` gate) were part of the proposal the
+owner answered. They are not covered by the accepted option "accept the
+security policy contracts", so they stay open, along with the remaining gaps:
 
 - Requiring PR #1's runtime (or its successor) to conform to these contracts
   before any consumer is moved (G1). PR #1 is untouched.

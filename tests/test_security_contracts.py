@@ -125,6 +125,17 @@ class OwnerDecisionTests(unittest.TestCase):
         self.assertNotIn("PROPOSED, NOT ACCEPTED", doc)
         self.assertIn("### Still open", doc)
 
+    def test_contract_files_carry_accepted_marker_not_proposed(self):
+        files = sorted((ROOT / "contracts" / "security").glob("*.json"))
+        self.assertTrue(files)
+        stale = re.compile(r"\bproposed\b|not\s+accepted", re.I)
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            self.assertIsNone(stale.search(text), f"{path.name} still says PROPOSED / not accepted")
+            if path.name.endswith(".schema.json"):
+                self.assertIn("Accepted contract for BOO-163 (owner decision 2026-10-16)",
+                              json.loads(text)["description"], path.name)
+
     def test_scaffold_status_unchanged_by_decision(self):
         contract = json.loads((ROOT / "contract.json").read_text(encoding="utf-8"))
         self.assertEqual(contract["status"], "scaffolded")
