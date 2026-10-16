@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/audit-event.schema.json",
   "title": "Audit event",
-  "description": "An append-only security audit record. Once written no field may change and no event may be deleted; corrections are new events. Every event names its tenant and its actor. Metadata is redacted per the privacy-class policy and never contains secret values. PROPOSED contract for BOO-163.",
+  "description": "An append-only security audit record. Once written no field may change and no event may be deleted; corrections are new events. Every event names its tenant and its actor. Metadata is redacted per the privacy-class policy and never contains secret values. Accepted contract for BOO-163 (owner decision 2026-10-16).",
   "x-contract": "platform-security.audit-event.v1",
   "x-append-only": true,
   "x-immutable-fields": ["schema_version", "event_id", "tenant_id", "actor", "action", "target", "outcome", "occurred_at", "privacy_class", "request_id", "idempotency_key", "prev_hash", "metadata"],

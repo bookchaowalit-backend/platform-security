@@ -6,7 +6,7 @@
 | System | `security-identity` (`repository-catalog/registries/system-repositories.yaml`, solo-empire) |
 | Owning repo | `bookchaowalit-backend/platform-security` |
 | Base | `origin/main` @ `4d3ee11` |
-| Status | Evidence only. Owner decision **PROPOSED, NOT ACCEPTED**. No status change, runtime move or cutover. |
+| Status | Owner decision **ACCEPTED (owner decision 2026-10-16)**: accept the security policy contracts. No status change, runtime move or cutover. |
 
 ## Next gate (verbatim)
 
@@ -112,7 +112,7 @@ To reproduce, run `bash scripts/check.sh`.
 
 | # | Gap |
 |---|---|
-| G1 | No runtime enforces these contracts yet. PR #1 (`codex/shared-infrastructure-20261015`) adds a FastAPI/PostgreSQL pilot whose provider set (`env`, `vault`, `aws`), scopes and audit fields only partly match this contract: it has no `infisical`, no `#version`, no `outcome`/`privacy_class`/`prev_hash`, and an actor that is a UUID only. Those need aligning after the owner decision. |
+| G1 | No runtime enforces these contracts yet. PR #1 (`codex/shared-infrastructure-20261015`) adds a FastAPI/PostgreSQL pilot whose provider set (`env`, `vault`, `aws`), scopes and audit fields only partly match this contract: it has no `infisical`, no `#version`, no `outcome`/`privacy_class`/`prev_hash`, and an actor that is a UUID only. The contracts are accepted (2026-10-16), but requiring the runtime to align is still open. |
 | G2 | The registry `source_paths` (`infra/platform`, `infra/scripts/utils/secrets_health.py`) no longer exist in solo-empire HEAD. The registry entry should be updated. |
 | G3 | The named contract (`solo-empire-api-contract-v1.md`) is retired. A successor security contract doc in `architecture-docs` is needed. |
 | G4 | Signed-webhook verification and the token-hash table (`API_TOKENS_JSON`) are only represented as secret references here. Their verification rules are not re-specified. |
@@ -120,22 +120,42 @@ To reproduce, run `bash scripts/check.sh`.
 | G6 | The schemas use a supported JSON Schema subset validated by a stdlib validator. There is no third-party `jsonschema` cross-check and no pinned canonical copy like the sibling repos have. |
 | G7 | Secret-literal detection is heuristic. It is a guardrail, not a substitute for provider-side scanning. |
 
-## Owner decision — PROPOSED, NOT ACCEPTED
+## Owner decision — ACCEPTED (owner decision 2026-10-16)
 
-The owner is asked to accept or amend the following. None of it is accepted,
-and nothing below has been applied to any runtime, registry or production
-system.
+The owner's answer, verbatim: "ทั้งหมด ยกเว้น 140/256 (Recommended)". It was
+relayed via the parent session (`local_a6dedf75`). It means: accept the
+recommended option on every pending gate except BOO-140 and BOO-256. For
+BOO-163 the accepted option is:
 
-1. Adopt the five contracts in `contracts/security/` as `platform-security`'s
-   v1 tenant, permission, secret-reference, audit-event and privacy-class
+> BOO-163: accept the security policy contracts.
+
+This accepts the contracts themselves:
+
+1. The five contracts in `contracts/security/` are `platform-security`'s v1
+   tenant, permission, secret-reference, audit-event and privacy-class
    contracts.
-2. Adopt `provider://path#version` with providers `env | infisical | vault | aws-sm`
-   as the only allowed secret representation, and forbid secret values in any
-   platform API, log or audit record.
-3. Adopt the deny-by-default role matrix in `contracts/security/permission-matrix.json`,
-   including the mapping of the legacy Bearer scopes and PR #1 scopes to matrix
-   actions.
-4. Require PR #1's runtime (or its successor) to conform to these contracts
-   before any consumer is moved (G1).
-5. Record a successor contract doc and refresh the registry `source_paths`
-   (G2, G3). Handle `waf-controls` as a separate gate (G5).
+2. `provider://path#version`, with providers `env | infisical | vault | aws-sm`,
+   is the only allowed secret representation. Secret values are forbidden in
+   any platform API, log or audit record.
+3. The deny-by-default role matrix in `contracts/security/permission-matrix.json`
+   is adopted. That includes the mapping of the legacy Bearer scopes and PR #1
+   scopes to matrix actions.
+
+Nothing has been applied to any runtime, registry or production system, and
+the `contract.json` status stays `scaffolded`. There is no cutover.
+
+### Still open (not covered by the accepted option)
+
+Proposed items 4 and 5 (runtime conformance, successor contract doc and
+registry `source_paths`, `waf-controls` gate) were part of the proposal the
+owner answered. They are not covered by the accepted option "accept the
+security policy contracts", so they stay open, along with the remaining gaps:
+
+- Requiring PR #1's runtime (or its successor) to conform to these contracts
+  before any consumer is moved (G1). PR #1 is untouched.
+- Recording a successor contract doc and refreshing the registry `source_paths`
+  (G2, G3).
+- Handling `waf-controls` as a separate gate (G5).
+- Re-specifying webhook signature and token-hash rules (G4).
+- A `jsonschema` cross-check or a pinned canonical copy (G6).
+- A provider-side secret scanner (G7).

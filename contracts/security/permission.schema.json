@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/permission.schema.json",
   "title": "Permission policy (role to action matrix)",
-  "description": "Deny-by-default role -> action matrix. Cross-references (matrix roles/actions exist, secret resolution only for service principals, no audit mutation action) are enforced by scripts/security_contracts.py. PROPOSED contract for BOO-163.",
+  "description": "Deny-by-default role -> action matrix. Cross-references (matrix roles/actions exist, secret resolution only for service principals, no audit mutation action) are enforced by scripts/security_contracts.py. Accepted contract for BOO-163 (owner decision 2026-10-16).",
   "x-contract": "platform-security.permission.v1",
   "type": "object",
   "additionalProperties": false,

@@ -105,6 +105,42 @@ class GateDriftTests(unittest.TestCase):
         self.assertEqual(set(schema["x-immutable-fields"]), set(schema["properties"]))
 
 
+class OwnerDecisionTests(unittest.TestCase):
+    DOC = ROOT / "docs" / "gates" / "BOO-163-security-policy-contracts.md"
+
+    def test_fixture_records_accepted_decision_with_date(self):
+        decision = GATE["owner_decision"]
+        self.assertIsInstance(decision, dict)
+        self.assertEqual(decision.get("status"), "accepted")
+        self.assertEqual(decision.get("date"), "2026-10-16")
+        self.assertEqual(decision.get("accepted_option"), "BOO-163: accept the security policy contracts.")
+        self.assertTrue(decision.get("verbatim_answer"))
+        self.assertTrue(decision.get("open_follow_ups"))
+
+    def test_doc_marks_decision_accepted_with_date(self):
+        doc = self.DOC.read_text(encoding="utf-8")
+        self.assertIn("## Owner decision — ACCEPTED (owner decision 2026-10-16)", doc)
+        self.assertIn(GATE["owner_decision"]["verbatim_answer"], doc)
+        self.assertIn(GATE["owner_decision"]["accepted_option"], doc)
+        self.assertNotIn("PROPOSED, NOT ACCEPTED", doc)
+        self.assertIn("### Still open", doc)
+
+    def test_contract_files_carry_accepted_marker_not_proposed(self):
+        files = sorted((ROOT / "contracts" / "security").glob("*.json"))
+        self.assertTrue(files)
+        stale = re.compile(r"\bproposed\b|not\s+accepted", re.I)
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            self.assertIsNone(stale.search(text), f"{path.name} still says PROPOSED / not accepted")
+            if path.name.endswith(".schema.json"):
+                self.assertIn("Accepted contract for BOO-163 (owner decision 2026-10-16)",
+                              json.loads(text)["description"], path.name)
+
+    def test_scaffold_status_unchanged_by_decision(self):
+        contract = json.loads((ROOT / "contract.json").read_text(encoding="utf-8"))
+        self.assertEqual(contract["status"], "scaffolded")
+
+
 class TenantTests(unittest.TestCase):
     def test_fixtures(self):
         data = fixture("tenants.json")

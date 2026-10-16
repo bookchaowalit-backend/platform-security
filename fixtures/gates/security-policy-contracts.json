@@ -4,7 +4,14 @@
   "system_id": "security-identity",
   "next_gate": "Define tenant, permission, secret-reference, audit, and privacy policy contracts.",
   "contract": "systems/architecture/solo-empire-api-contract-v1.md#authentication-classes",
-  "owner_decision": "proposed-not-accepted",
+  "owner_decision": {
+    "status": "accepted",
+    "date": "2026-10-16",
+    "accepted_option": "BOO-163: accept the security policy contracts.",
+    "verbatim_answer": "ทั้งหมด ยกเว้น 140/256 (Recommended)",
+    "relayed_via": "parent session local_a6dedf75",
+    "open_follow_ups": ["G1 runtime conformance before consumer move", "G2 registry source_paths", "G3 successor contract doc", "G4 webhook/token-hash rules", "G5 waf-controls gate", "G6 jsonschema cross-check / canonical pin", "G7 provider-side secret scanning"]
+  },
   "contract_json_capabilities": {
     "secret-reference": {"schema": "contracts/security/secret-reference.schema.json", "status": "defined"},
     "policy": {"schema": "contracts/security/permission.schema.json", "instance": "contracts/security/permission-matrix.json", "status": "defined"},

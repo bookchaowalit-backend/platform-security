@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/bookchaowalit-backend/platform-security/contracts/security/privacy-class.schema.json",
   "title": "Privacy class policy",
-  "description": "Ordered privacy classes and how data of each class may appear in logs, audit metadata and storage. PROPOSED contract for BOO-163.",
+  "description": "Ordered privacy classes and how data of each class may appear in logs, audit metadata and storage. Accepted contract for BOO-163 (owner decision 2026-10-16).",
   "x-contract": "platform-security.privacy-class.v1",
   "type": "object",
   "additionalProperties": false,
