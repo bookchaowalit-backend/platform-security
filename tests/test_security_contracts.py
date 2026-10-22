@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import security_contracts as sc  # noqa: E402
+import security_contracts as sc
 
 GATE = json.loads((ROOT / "fixtures/gates/security-policy-contracts.json").read_text(encoding="utf-8"))
 FIX = ROOT / "fixtures" / "security"
@@ -128,7 +128,7 @@ class OwnerDecisionTests(unittest.TestCase):
     def test_contract_files_carry_accepted_marker_not_proposed(self):
         files = sorted((ROOT / "contracts" / "security").glob("*.json"))
         self.assertTrue(files)
-        stale = re.compile(r"\bproposed\b|not\s+accepted", re.I)
+        stale = re.compile(r"\bproposed\b|not\s+accepted", re.IGNORECASE)
         for path in files:
             text = path.read_text(encoding="utf-8")
             self.assertIsNone(stale.search(text), f"{path.name} still says PROPOSED / not accepted")

@@ -16,9 +16,10 @@ import hashlib
 import json
 import math
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,7 +100,7 @@ def _format_ok(value: str, fmt: str) -> bool:
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})", value):
             return False
         try:
-            datetime.fromisoformat(value.replace("Z", "+00:00"))
+            datetime.fromisoformat(value)
         except ValueError:
             return False
         return True
@@ -132,9 +133,13 @@ def schema_errors(instance: Any, schema: dict[str, Any], root: dict[str, Any] | 
             errors.append(f"{path}: does not match {schema['pattern']}")
         if "format" in schema and not _format_ok(instance, schema["format"]):
             errors.append(f"{path}: not a valid {schema['format']}")
-    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
-        if "minimum" in schema and instance < schema["minimum"]:
-            errors.append(f"{path}: below {schema['minimum']}")
+    if (
+        isinstance(instance, (int, float))
+        and not isinstance(instance, bool)
+        and "minimum" in schema
+        and instance < schema["minimum"]
+    ):
+        errors.append(f"{path}: below {schema['minimum']}")
     if isinstance(instance, list):
         if "minItems" in schema and len(instance) < schema["minItems"]:
             errors.append(f"{path}: fewer than {schema['minItems']} items")
@@ -174,8 +179,8 @@ _SECRET_PREFIXES = (
 )
 _PEM = re.compile(r"-----BEGIN")
 _JWT = re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}")
-_URL_CREDENTIALS = re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@", re.I)
-_BEARER = re.compile(r"\bbearer\s+\S{8,}", re.I)
+_URL_CREDENTIALS = re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@", re.IGNORECASE)
+_BEARER = re.compile(r"\bbearer\s+\S{8,}", re.IGNORECASE)
 _HEX = re.compile(r"[0-9a-fA-F]{32,}")
 
 
