@@ -18,6 +18,6 @@ def main():
         app=create_app(Database(os.environ['DATABASE_URL']),verifier)
         import uvicorn
         uvicorn.run(app,host='0.0.0.0',port=int(os.environ.get('PORT','8080')),access_log=False,limit_concurrency=100)
-    except Exception:
+    except Exception:  # noqa: BLE001  fail closed: hide config and dependency details from the exit message
         raise SystemExit('Service configuration or dependency unavailable') from None
 if __name__=='__main__':main()
