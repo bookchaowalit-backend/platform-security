@@ -1,11 +1,14 @@
-from uuid import uuid4
-import psycopg
-from platform_security.store import SecurityStore,Conflict,EnvironmentResolver
-from platform_security.migrations import MIGRATIONS
 import os
+from uuid import uuid4
+
+import psycopg
 import pytest
 from platform_backend_core import Database, MigrationRunner
 from platform_backend_core.testing import temporary_database
+
+from platform_security.migrations import MIGRATIONS
+from platform_security.store import Conflict, EnvironmentResolver, SecurityStore
+
 
 @pytest.fixture
 def database():

@@ -3,16 +3,16 @@ import os
 from uuid import uuid4
 
 import psycopg
-from psycopg import sql
 import pytest
 from fastapi.testclient import TestClient
 from platform_backend_core import Database, MigrationRunner
 from platform_backend_core.testing import temporary_database
+from psycopg import sql
 from test_http import auth
 
 from platform_security.app import create_app
 from platform_security.migrations import MIGRATIONS
-from platform_security.store import SecurityStore, Conflict
+from platform_security.store import Conflict, SecurityStore
 
 
 @pytest.fixture

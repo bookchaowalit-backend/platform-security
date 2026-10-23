@@ -1,4 +1,5 @@
 from platform_backend_core import Migration
+
 MIGRATIONS=[Migration('0001',"""
 CREATE TABLE secret_references(workspace_id uuid NOT NULL,name text NOT NULL,provider text NOT NULL CHECK(provider IN ('env','vault','aws')),reference text NOT NULL,purpose text NOT NULL,rotated_at timestamptz,PRIMARY KEY(workspace_id,name));
 CREATE TABLE security_audit(workspace_id uuid NOT NULL,id uuid NOT NULL,actor uuid NOT NULL,event_key text NOT NULL,fingerprint text NOT NULL,action text NOT NULL,target text NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),PRIMARY KEY(workspace_id,id),UNIQUE(workspace_id,event_key));

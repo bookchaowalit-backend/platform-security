@@ -1,15 +1,18 @@
-from platform_security.app import create_app
-from platform_security.migrations import MIGRATIONS
 import os
 import time
 from uuid import uuid4
-import pytest
+
 import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
+import pytest
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
-from platform_backend_core import Database,MigrationRunner,TokenVerifier
+from platform_backend_core import Database, MigrationRunner, TokenVerifier
 from platform_backend_core.testing import temporary_database
+
+from platform_security.app import create_app
+from platform_security.migrations import MIGRATIONS
+
 
 def auth():
     key=rsa.generate_private_key(public_exponent=65537,key_size=2048)
@@ -62,7 +65,6 @@ def test_secret_value_rejected_audit_identity_bound_and_permissions(setup):
 
 def test_applied_migration_checksum_required(setup):
     import psycopg
-    from psycopg import sql
     temp,db,verifier,headers=setup
     MigrationRunner(temp.admin_dsn,namespace='security').apply(MIGRATIONS);temp.grant_schema('public')
     with psycopg.connect(temp.admin_dsn) as admin:

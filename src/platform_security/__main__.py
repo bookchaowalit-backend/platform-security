@@ -1,9 +1,12 @@
 """Explicit service lifecycle; migrations never run at API startup."""
 import argparse
 import os
-from platform_backend_core import Database,MigrationRunner,TokenVerifier
-from .migrations import MIGRATIONS
+
+from platform_backend_core import Database, MigrationRunner, TokenVerifier
+
 from .app import create_app
+from .migrations import MIGRATIONS
+
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('command',choices=['serve','migrate']);args=p.parse_args()

@@ -2,9 +2,13 @@ import hashlib
 import json
 import re
 from datetime import datetime
-from uuid import UUID,uuid4
+from uuid import UUID, uuid4
+
 from psycopg.rows import dict_row
+
 from .migrations import MIGRATIONS
+
+
 class Conflict(Exception):pass
 
 def identifier(value):
