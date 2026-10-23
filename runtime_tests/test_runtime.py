@@ -34,26 +34,24 @@ def test_reference_only_and_unknown_resolution(database):
     with pytest.raises(KeyError):r.resolve('UNKNOWN')
 
 def test_audit_append_idempotent_and_immutable(database):
-    db,temp=database;s=SecurityStore(db);w,actor=uuid4(),uuid4()
+    db,_temp=database;s=SecurityStore(db);w,actor=uuid4(),uuid4()
     first=s.append(w,actor,'key-1','reference.created','mail')
     assert s.append(w,actor,'key-1','reference.created','mail')==first
     with pytest.raises(Conflict):s.append(w,actor,'key-1','reference.deleted','mail')
     assert len(s.list_audit(w))==1 and s.list_audit(uuid4())==[]
-    with db.transaction(w) as c:
-        with pytest.raises(psycopg.Error):c.execute('UPDATE security_audit SET action=action')
-    with db.transaction(w) as c:
-        with pytest.raises(psycopg.Error):c.execute('DELETE FROM security_audit')
+    with db.transaction(w) as c, pytest.raises(psycopg.Error):
+        c.execute('UPDATE security_audit SET action=action')
+    with db.transaction(w) as c, pytest.raises(psycopg.Error):
+        c.execute('DELETE FROM security_audit')
     assert s.list_audit(w)[0]['actor']==actor
 
 def test_reference_and_audit_force_rls_reject_foreign_inserts(database):
     import psycopg
     db,_=database;workspace=uuid4()
-    with db.transaction(workspace) as c:
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            c.execute("INSERT INTO secret_references VALUES (%s,'foreign','env','TOKEN','purpose',NULL)",(uuid4(),))
-    with db.transaction(workspace) as c:
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            c.execute("INSERT INTO security_audit(workspace_id,id,actor,event_key,fingerprint,action,target) VALUES (%s,%s,%s,'foreign','fixture','test.created','fixture')",(uuid4(),uuid4(),uuid4()))
+    with db.transaction(workspace) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("INSERT INTO secret_references VALUES (%s,'foreign','env','TOKEN','purpose',NULL)",(uuid4(),))
+    with db.transaction(workspace) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("INSERT INTO security_audit(workspace_id,id,actor,event_key,fingerprint,action,target) VALUES (%s,%s,%s,'foreign','fixture','test.created','fixture')",(uuid4(),uuid4(),uuid4()))
 
 def test_audit_concurrent_dedupe_is_atomic(database):
     from concurrent.futures import ThreadPoolExecutor

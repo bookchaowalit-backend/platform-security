@@ -46,9 +46,8 @@ def test_store_pool_reuse_after_audit_conflict_and_isolation(pooled):
     assert store.append(workspace,actor,'fixture','reference.created','fixture')['id']==row['id']
     with pytest.raises(Conflict):store.append(workspace,actor,'fixture','reference.deleted','fixture')
     assert len(store.list_audit(workspace))==1 and store.list_audit(foreign)==[]
-    with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        with database.transaction(workspace) as conn:
-            conn.execute('UPDATE security_audit SET action=action')
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), database.transaction(workspace) as conn:
+        conn.execute('UPDATE security_audit SET action=action')
     assert_repeated_ready(database,store)
 
 

@@ -35,7 +35,7 @@ def setup():
         db.close()
 
 def test_missing_schema_is_not_ready(setup):
-    temp,db,verifier,headers=setup
+    _temp,db,verifier,_headers=setup
     with TestClient(create_app(db,verifier)) as c:
         assert c.get('/readyz').status_code==503
         assert c.get('/healthz').status_code==200
@@ -65,13 +65,11 @@ def test_secret_value_rejected_audit_identity_bound_and_permissions(setup):
 
 def test_applied_migration_checksum_required(setup):
     import psycopg
-    temp,db,verifier,headers=setup
+    temp,db,verifier,_headers=setup
     MigrationRunner(temp.admin_dsn,namespace='security').apply(MIGRATIONS);temp.grant_schema('public')
     with psycopg.connect(temp.admin_dsn) as admin:
         admin.execute("DELETE FROM platform_schema_migrations WHERE namespace=%s",('security',))
-    class Adapter:configured=True
-    kwargs={'adapters':{'email':Adapter()}} if 'security'=='communication' else {}
-    with TestClient(create_app(db,verifier,**kwargs)) as c:
+    with TestClient(create_app(db,verifier)) as c:
         assert c.get('/readyz').status_code==503
 
 
@@ -79,15 +77,13 @@ def test_applied_migration_checksum_required(setup):
 def test_readiness_requires_each_effective_privilege(setup,kind,target,privilege):
     import psycopg
     from psycopg import sql
-    temp,db,verifier,headers=setup
+    temp,db,verifier,_headers=setup
     MigrationRunner(temp.admin_dsn,namespace='security').apply(MIGRATIONS)
     temp.grant_schema('public')
     with psycopg.connect(temp.admin_dsn) as admin:
         admin.execute('REVOKE USAGE ON SCHEMA public FROM PUBLIC')
         admin.execute(sql.SQL('REVOKE UPDATE,DELETE,TRUNCATE ON security_audit FROM {}').format(sql.Identifier(temp.runtime_role)))
-    class Adapter:configured=True
-    kwargs={'adapters':{'email':Adapter()}} if 'security'=='communication' else {}
-    with TestClient(create_app(db,verifier,**kwargs)) as c:
+    with TestClient(create_app(db,verifier)) as c:
         assert c.get('/readyz').status_code==200
         with psycopg.connect(temp.admin_dsn) as admin:
             admin.execute(sql.SQL('REVOKE {} ON {} {} FROM {}').format(sql.SQL(privilege),sql.SQL(kind),sql.Identifier(target),sql.Identifier(temp.runtime_role)))
@@ -100,7 +96,7 @@ def test_readiness_requires_each_effective_privilege(setup,kind,target,privilege
 def test_readiness_rejects_each_forbidden_audit_privilege(setup,privilege):
     import psycopg
     from psycopg import sql
-    temp,db,verifier,headers=setup
+    temp,db,verifier,_headers=setup
     MigrationRunner(temp.admin_dsn,namespace='security').apply(MIGRATIONS)
     temp.grant_schema('public')
     with psycopg.connect(temp.admin_dsn) as admin:
