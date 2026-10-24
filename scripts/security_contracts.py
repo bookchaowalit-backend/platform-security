@@ -78,7 +78,7 @@ def unsupported_keywords(schema: Any, path: str = "#") -> list[str]:
     return found
 
 
-_TYPES = {
+_TYPES: dict[str, type | tuple[type, ...]] = {
     "object": dict, "array": list, "string": str, "boolean": bool,
     "integer": int, "number": (int, float), "null": type(None),
 }

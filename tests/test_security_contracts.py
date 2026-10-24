@@ -81,7 +81,10 @@ class GateDriftTests(unittest.TestCase):
     def test_providers_match_schema_enum_and_ref_pattern(self):
         schema = sc.load_schema("secret-reference")
         enum = schema["properties"]["provider"]["enum"]
-        scheme = re.match(r"\^\(([^)]*)\)://", schema["properties"]["ref"]["pattern"]).group(1).split("|")
+        match = re.match(r"\^\(([^)]*)\)://", schema["properties"]["ref"]["pattern"])
+        self.assertIsNotNone(match)
+        assert match is not None
+        scheme = match.group(1).split("|")
         self.assertEqual(set(GATE["secret_providers"]), set(enum))
         self.assertEqual(set(enum), set(scheme))
         for alias, canonical in GATE["provider_aliases"].items():

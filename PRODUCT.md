@@ -23,18 +23,26 @@ it, and every gate in `fixtures/gates/` passes in CI.
 
 ## Positioning
 
-A boundary contract with offline evidence, not a running service. Security policy contracts (`contracts/security/`: permission matrix, privacy classes, secret references, tenants, audit events) validated by `scripts/security_contracts.py`.
+A boundary contract with offline evidence plus an undeployed runtime pilot:
+
+- Security policy contracts (`contracts/security/`: permission matrix, privacy classes, secret
+  references, tenants, audit events) validated by `scripts/security_contracts.py`.
+- The `platform_security` package (`src/platform_security/`): a FastAPI service for
+  workspace-scoped secret references and an append-only audit log on PostgreSQL with RLS,
+  built on `platform-backend-core` (`docs/runtime.md`). It runs only in tests.
 
 ## Operating Context
 
 - Status: `scaffolded`; DOCPACK verdict: `template`. The runtime is not activated; the current
   implementation is `infra/platform` in the parent registry.
-- CI: shared `ci-python` (Ruff and `scripts/check.sh` on Python 3.11 and 3.12) and the shared
-  security workflow, on GitHub-hosted runners (public repository).
-- Sentry does not apply: nothing runs in production. Add it in the change that activates a
-  runtime.
-- The open `codex/shared-infrastructure-20261015` pull request (decision D8) is outside this
-  document.
+- CI (GitHub-hosted, public repository): `scripts/check.sh` on Python 3.11 and 3.12; the shared
+  `ci-python` job installs from `uv.lock` (`uv sync --frozen`), runs Ruff, mypy and the whole
+  pytest suite against a disposable PostgreSQL under a coverage gate, then builds the wheel; the
+  shared security workflow runs alongside.
+- The D8 `codex/shared-infrastructure-20261015` pull request (#1) was merged into `main` as
+  `f92621d`; it added the runtime pilot above.
+
+Sentry waiver: Dockerfile and railway.toml are reference release assets only; no image is built or deployed anywhere, so there is no runtime to report from.
 
 ## Capabilities and Constraints
 

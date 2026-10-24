@@ -11,3 +11,7 @@ build/
 dist/
 wheelhouse/
 .venv/
+.coverage
+.coverage.*
+.mypy_cache/
+.ruff_cache/

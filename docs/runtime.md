@@ -10,8 +10,8 @@ unchanged because its guard requires activation evidence.
 Python >=3.12, PostgreSQL >=16. Build/review wheels for this repository and
 `platform-backend-core==0.1.0`; the parent release bundles all transitive wheels
 in `wheelhouse/` for the Dockerfile. Nothing is published to PyPI. Local editing
-uses `pip install -e . --no-deps` after installing the reviewed core and runtime
-dependencies. `Dockerfile` and `railway.toml` are reference release assets;
+uses `uv sync --frozen --all-extras`: `uv.lock` pins every dependency, with
+`platform-backend-core` taken from its reviewed Git commit (`[tool.uv.sources]`). `Dockerfile` and `railway.toml` are reference release assets;
 no container build or Railway deployment has been executed here.
 
 - `python -m platform_security migrate`: explicit migration with DDL-role `DATABASE_URL`.

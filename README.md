@@ -32,6 +32,12 @@ Run from this repository:
 bash scripts/check.sh
 ```
 
+The runtime package (`src/platform_security/`) is developed on the locked
+environment: `uv sync --frozen --all-extras`, then `ruff check .`, `mypy` and
+`python -m pytest` (set `PLATFORM_TEST_DSN` to a disposable PostgreSQL admin DSN
+for the database tests). CI runs the same through the shared `ci-python`
+workflow with a coverage gate.
+
 The check validates repository shape and contract metadata only. It does not
 claim deployment, provider connectivity, data migration, or production
 readiness.
