@@ -11,7 +11,7 @@ test = ["pytest>=8", "httpx>=0.28,<1"]
 # Lint, type check and coverage tools for CI (uv sync --frozen --all-extras).
 dev = ["mypy==2.4.0", "ruff==0.17.1", "pytest-cov==7.1.0"]
 [tool.uv.sources]
-# Not on PyPI: lock the reviewed commit the runtime tests and Dockerfile wheelhouse use,
+# Not on PyPI: lock the reviewed commit the runtime tests and the Dockerfile (uv sync --frozen) use,
 # so the resolver can never pick up a same-named PyPI package (dependency confusion).
 platform-backend-core = { git = "https://github.com/bookchaowalit-backend/platform-backend-core.git", rev = "d00e0119c2e47da3942d9c7b4b88828953f8bc5a" }
 [tool.setuptools.packages.find]
