@@ -7,12 +7,39 @@ unchanged because its guard requires activation evidence.
 
 ## Installation and lifecycle
 
-Python >=3.12, PostgreSQL >=16. Build/review wheels for this repository and
-`platform-backend-core==0.1.0`; the parent release bundles all transitive wheels
-in `wheelhouse/` for the Dockerfile. Nothing is published to PyPI. Local editing
+Python >=3.12, PostgreSQL >=16. Nothing is published to PyPI. Local editing
 uses `uv sync --frozen --all-extras`: `uv.lock` pins every dependency, with
-`platform-backend-core` taken from its reviewed Git commit (`[tool.uv.sources]`). `Dockerfile` and `railway.toml` are reference release assets;
-no container build or Railway deployment has been executed here.
+`platform-backend-core` taken from its reviewed Git commit (`[tool.uv.sources]`).
+`railway.toml` is a reference release asset; no Railway deployment has been
+executed here.
+
+### Container image
+
+`docker build .` works from a clean checkout; no pre-staged `wheelhouse/` is
+needed. The `Dockerfile` is two stages:
+
+1. `build` (`python:3.12-slim` plus `git` and uv 0.13.1, the CI version, pinned
+   by image digest): `uv sync --frozen --no-dev --no-editable` installs this
+   service and every runtime dependency from `uv.lock` into `/opt/venv`, so
+   `platform-backend-core` comes from the same reviewed commit
+   (`d00e0119c2e47da3942d9c7b4b88828953f8bc5a`) CI installs, with the lock's hashes.
+   No test or dev extras are installed.
+2. `runtime` (`python:3.12-slim`, no git, no uv): copies only `/opt/venv`, runs
+   as UID/GID `65532`, `PORT=8080`, and keeps
+   `CMD ["python", "-m", "platform_security", "serve"]`. Run `migrate` as a
+   separate one-off with the DDL-role `DATABASE_URL` (same image, command override).
+
+`.dockerignore` keeps `.git`, `.venv`, tests, build output and `.env*` out of the
+build context. CI job `image` in `check.yml` runs `docker build` on every push and
+pull request, then checks that the image imports the service and runs as a
+non-root user. It never pushes or deploys. `tests/test_build_hygiene.py` (part of
+`scripts/check.sh`) fails if the Dockerfile copies a git-ignored path, stops being
+multi-stage, resolves anything outside `uv.lock` (`pip install`, a second core
+pin), runs the final stage as anything but `65532:65532` or changes the CMD, if
+`[tool.uv.sources]` and `uv.lock` disagree on the core commit, if CI stops
+building the image, or if any workflow `uses:` is not pinned to a 40-hex commit
+SHA (tag in a trailing comment). Upgrading the core means changing the commit in
+`[tool.uv.sources]` and re-locking (`uv lock`).
 
 - `python -m platform_security migrate`: explicit migration with DDL-role `DATABASE_URL`.
 - `python -m platform_security serve`: separate nonowner, NOSUPERUSER NOBYPASSRLS
@@ -127,3 +154,28 @@ Store queries that return mappings use cursor-scoped `dict_row`; they do not
 change the pooled connection row factory. Single-connection PostgreSQL
 regressions cover successful traffic, conflicts, rollback and foreign-workspace
 reads followed by repeated service and shared-core readiness checks.
+
+## Build hygiene 2026-10-29 (branch `build-hygiene`)
+
+Ported from `platform-developer` `8047108`, adapted to this repository's `uv.lock`:
+
+1. The `Dockerfile` copied the git-ignored `wheelhouse/`, so `docker build .`
+   failed on a fresh clone. It is now the two-stage `uv sync --frozen` build under
+   "Container image", with a `.dockerignore`, and CI job `image` builds it
+   without pushing.
+2. `check.yml` already pinned every `uses:` (all three jobs call the shared
+   workflows at `87dc5e1...` = v1.1.1); the new `image` job pins
+   `actions/checkout` to `11d5960a...` (v4), and the test now guards all of them.
+
+RED (tests written first, run on the old files, Python 3.12):
+`python -m unittest tests.test_build_hygiene` failed 5 of 9 (`wheelhouse` copied;
+no `.dockerignore`; no `docker build` in CI; no `uv.lock`/`uv sync --frozen`; one
+`FROM`). The checker self-test, the workflow pin check, lock/`[tool.uv.sources]`
+agreement and the non-root `USER`/CMD check passed.
+
+GREEN: `bash scripts/check.sh` 57 unit tests OK; `ruff check .` and `mypy` clean;
+`python -m pytest -q --cov` with a local PostgreSQL (`pgserver`) 76 passed,
+coverage 87% (gate 87). The build stage was rehearsed without Docker
+(`uv sync --frozen --no-dev --no-editable` into a fresh venv from a clean copy,
+then `import platform_backend_core, platform_security.app`); the image itself is
+verified only by the CI `image` job. Nothing was pushed to a registry or deployed.
