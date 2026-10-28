@@ -7,7 +7,7 @@ from platform_backend_core import create_app as base_app
 from platform_backend_core import require_scope
 from pydantic import BaseModel, ConfigDict, Field
 
-from .store import Conflict, SecurityStore
+from .store import Conflict, InvalidInput, SecurityStore
 
 # Scope dependencies built once at import (Ruff B008: no calls in argument defaults).
 REFERENCES_READ=Depends(require_scope('references:read'))
@@ -28,7 +28,9 @@ class Audit(BaseModel):
 def create_app(database,verifier):
     app=base_app('security',database,verifier,max_body_bytes=8192);store=SecurityStore(database)
     app.state.readiness_checks['security_schema_permissions']=store.ready
-    @app.exception_handler(ValueError)
+    # Only the domain InvalidInput is a client error; any other exception (an unexpected
+    # ValueError included) is a server bug and becomes the shared core's redacted 500.
+    @app.exception_handler(InvalidInput)
     async def invalid(request,exc):return JSONResponse({'detail':'Invalid metadata'},422)
     @app.exception_handler(Conflict)
     async def conflict(request,exc):return JSONResponse({'detail':'Idempotency conflict'},409)

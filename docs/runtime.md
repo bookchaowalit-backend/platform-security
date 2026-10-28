@@ -179,3 +179,29 @@ coverage 87% (gate 87). The build stage was rehearsed without Docker
 (`uv sync --frozen --no-dev --no-editable` into a fresh venv from a clean copy,
 then `import platform_backend_core, platform_security.app`); the image itself is
 verified only by the CI `image` job. Nothing was pushed to a registry or deployed.
+
+## 422 only for domain input — 2026-10-29 (branch `invalid-input`)
+
+Ported from `platform-developer` `8047108` and `platform-commerce` `main`. The app
+mapped every `ValueError` to 422 `Invalid metadata`, so a server bug surfaced as a
+client error. `store.InvalidInput(ValueError)` is now raised for validation
+(`identifier`, `reference`, `put_reference` purpose and rotation, both list
+limits, the audit `Idempotency-Key`), and only that maps to 422. Request-schema
+errors keep the core's 422; any other exception, including an unexpected
+`ValueError`, is the shared core's redacted 500.
+
+`append` used one check for the actor and the key. The actor always comes from
+the verified token, so a non-UUID actor now raises `TypeError` (a server bug, 500)
+and only the key check is `InvalidInput`. `EnvironmentResolver.resolve` (never
+behind a route) raises `InvalidInput` for a bad name, still a `ValueError` for
+its callers. Readiness and startup are unchanged.
+
+RED (`runtime_tests/test_error_mapping.py` written first): collection error,
+`InvalidInput` missing. With a temporary `InvalidInput = ValueError` stand-in:
+2 failed (`test_unexpected_value_error_is_redacted_500` `assert 422 == 500`, and the
+non-UUID actor case), 10 passed.
+
+GREEN: `PLATFORM_TEST_DSN=... pytest -q` 88 passed, 12 subtests, against
+PostgreSQL 16 (`pgserver`); `--cov` total 87% (gate 87); `bash scripts/check.sh`
+57 tests OK; `ruff check .` and `mypy` clean (locked `uv sync --frozen
+--all-extras`). Nothing deployed.
