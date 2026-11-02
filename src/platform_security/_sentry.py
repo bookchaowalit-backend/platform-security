@@ -85,14 +85,31 @@ def _next_unescaped_whitespace(text: str) -> list[int]:
     return nxt
 
 
-def _value_end(text: str, start: int, nxt: list[int]) -> int:
+def _last_quote_in_line(text: str, quote: str) -> list[int]:
+    # last[i]: index of the last `quote` on i's line at or after i (-1 if none). One linear pass.
+    last = [-1] * len(text)
+    seen = -1
+    for i in range(len(text) - 1, -1, -1):
+        if text[i] == "\n":
+            seen = -1
+        elif text[i] == quote and seen == -1:
+            seen = i
+        last[i] = seen
+    return last
+
+
+def _value_end(text: str, start: int, nxt: list[int], last_quote: dict[str, list[int]]) -> int:
     # The furthest end any value shape reaches. A shape that hits its bound, or a quote that does
     # not close within it, runs on (to the next unescaped whitespace, or the end): fail closed.
+    # A quoted value also runs to the last same quote on its line: once a DSN is serialised
+    # (repr, a dict, a multi-argument exception) its backslashes are doubled, and an escaped quote
+    # inside the password looks like the closing one.
     ends = [start]
     quote = text[start : start + 1]
     if quote in _QUOTED_AT:
         m = _QUOTED_AT[quote].match(text, start)
         ends.append(m.end() if m else len(text))
+        ends.append(last_quote[quote][start] + 1)
     for shape in (_FIELD_AT, _LIBPQ_AT):
         m = shape.match(text, start)
         if m:
@@ -110,7 +127,8 @@ def _secret_spans(text: str) -> list[tuple[int, int]]:
     keys = list(_KV_KEY.finditer(text))
     if keys:
         nxt = _next_unescaped_whitespace(text)
-        spans += [(m.end(), _value_end(text, m.end(), nxt)) for m in keys]
+        last_quote = {q: _last_quote_in_line(text, q) for q in _QUOTED_AT}
+        spans += [(m.end(), _value_end(text, m.end(), nxt, last_quote)) for m in keys]
     return [(a, b) for a, b in spans if b > a]
 
 
@@ -184,7 +202,8 @@ class CaptureErrors:
     """Innermost ASGI layer that reports unhandled exceptions, then re-raises them.
 
     The shared core's boundary turns an unexpected exception into a redacted 500, so Sentry's
-    outer ASGI integration never sees it. A no-op while Sentry is not initialised.
+    outer ASGI integration never sees it. Reported with handled=False, so unhandled-error filters
+    and alerts still count it. A no-op while Sentry is not initialised.
     """
 
     def __init__(self, app: Any) -> None:
@@ -195,8 +214,13 @@ class CaptureErrors:
             await self.app(scope, receive, send)
         except Exception as exc:
             import sentry_sdk
+            from sentry_sdk.utils import event_from_exception
 
-            sentry_sdk.capture_exception(exc)
+            client = sentry_sdk.get_client()
+            event, hint = event_from_exception(
+                exc, client_options=client.options, mechanism={"type": "asgi", "handled": False}
+            )
+            sentry_sdk.capture_event(event, hint=hint)
             raise
 
 
@@ -214,6 +238,9 @@ def init_sentry() -> None:
         # None (not 0.0) disables tracing completely: with 0.0 an incoming sentry-trace header
         # can still force a sampled transaction that carries the URL, query and headers.
         traces_sample_rate=None,
+        # ...and never forward an incoming sentry-trace/baggage header (it can carry user ids) on
+        # this service's own outbound requests, such as the JWKS fetch.
+        trace_propagation_targets=[],
         send_default_pii=False,
         include_local_variables=False,  # frame locals hold JWTs and database URLs
         max_request_body_size="never",
