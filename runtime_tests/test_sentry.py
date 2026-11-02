@@ -268,3 +268,13 @@ def test_scrub_complete_unquoted_libpq_values(text, secret):
     out = _sentry.scrub(text)
     assert secret not in out
     assert 'dbname=x' in out or 'dbname' not in text
+
+
+@pytest.mark.parametrize('text, secret', [
+    ('{"token":null,"password":"prefix SECRET_SUFFIX"}', 'SECRET_SUFFIX'),
+    ("{'token': 1, 'client_secret': 'a b SECRET_TWO'}", 'SECRET_TWO'),
+    ('password=x,api_key="k SECRET_THREE"', 'SECRET_THREE'),
+    ('{"pwd":"","secret":"s SECRET_FOUR"}', 'SECRET_FOUR'),
+])
+def test_scrub_adjacent_structured_fields(text, secret):
+    assert secret not in _sentry.scrub(text)

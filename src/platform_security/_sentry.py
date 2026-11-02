@@ -20,14 +20,19 @@ from typing import Any
 # scheme://user:password@host -> scheme://user:***@host
 _URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s:/@]{1,256}:)[^\s@]{1,512}(?=@)")
 # key=value / key: value secrets in libpq-style conninfo strings and similar, including prefixed
-# keys (client_secret, access_token, DB_PASSWORD) and quoted dict/JSON keys and values
-_KV_SECRET = re.compile(
-    r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)"""
-    # A quoted value runs to its closing quote (escapes included), or to the end if unterminated.
-    # Unquoted, it runs to the next unescaped whitespace: libpq accepts ',', '}' or quotes inside a
-    # password and backslash-escaped spaces, so any shorter stop would leave part of it behind.
-    r"""(?:"(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?|(?:\\[\s\S]|[^\s\\])+)"""
-)
+# keys (client_secret, access_token, DB_PASSWORD) and quoted dict/JSON keys and values.
+_KV_KEY = r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)"""
+# A quoted value runs to its closing quote (escapes included), or to the end if unterminated.
+_QUOTED = r""""(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?"""
+# Pass 1, structured: an unquoted value stops at a field boundary, so each adjacent field
+# ({"token":null,"password":"a b"}) is matched, and redacted, on its own. It also stops before
+# a backslash, leaving an escaped space for pass 2.
+_KV_FIELD = re.compile(_KV_KEY + "(?:" + _QUOTED + r"""|[^\s&"',}\\]+)""")
+# Pass 2, libpq: an unquoted value runs to the next unescaped whitespace, since a password may hold
+# ',', '}' or quotes and backslash-escaped spaces. It runs on pass 1's output, so whatever it
+# swallows past a boundary is already redacted: it can over-redact but never expose.
+_KV_LIBPQ = re.compile(_KV_KEY + r"""(?:\\[\s\S]|[^\s\\])+""")
+# scheme://host/path?query -> scheme://host/path?*** (OAuth codes, signed-URL tokens)
 _URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,512})\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{0,4096}")
@@ -72,7 +77,8 @@ def scrub(text: str) -> str:
         text = head[:cut] if cut > 0 else ""
     text = _URL_PASSWORD.sub(r"\g<head>***", text)
     text = _URL_QUERY.sub(r"\g<head>?***", text)
-    text = _KV_SECRET.sub(r"\1\2***", text)
+    text = _KV_FIELD.sub(r"\1\2***", text)
+    text = _KV_LIBPQ.sub(r"\1\2***", text)
     text = _BEARER.sub("Bearer ***", text)
     text = _JWT.sub("***jwt***", text)
     text = _EMAIL.sub("***email***", text)
