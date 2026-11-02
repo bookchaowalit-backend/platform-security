@@ -19,8 +19,13 @@ from typing import Any
 
 # scheme://user:password@host -> scheme://user:***@host
 _URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]*://[^\s:/@]+:)[^\s@]+(?=@)")
-# key=value / key: value secrets in libpq-style conninfo strings and similar
-_KV_SECRET = re.compile(r"(?i)\b(password|passwd|pwd|secret|token|api[_-]?key)(\s*[=:]\s*)\S+")
+# key=value / key: value secrets in libpq-style conninfo strings and similar, including prefixed
+# keys (client_secret, access_token, DB_PASSWORD) and quoted dict/JSON keys and values
+_KV_SECRET = re.compile(
+    r"""(?i)([A-Za-z0-9_-]*(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)(["']?)[^\s&"',}]+"""
+)
+# scheme://host/path?query -> scheme://host/path?*** (OAuth codes, signed-URL tokens)
+_URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]*://[^\s?#]*)\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*")
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
@@ -30,7 +35,8 @@ _IPV6 = re.compile(r"(?i)\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b")
 
 def scrub(text: str) -> str:
     text = _URL_PASSWORD.sub(r"\g<head>***", text)
-    text = _KV_SECRET.sub(r"\1\2***", text)
+    text = _URL_QUERY.sub(r"\g<head>?***", text)
+    text = _KV_SECRET.sub(r"\1\2\3***", text)
     text = _BEARER.sub("Bearer ***", text)
     text = _JWT.sub("***jwt***", text)
     text = _EMAIL.sub("***email***", text)

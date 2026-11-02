@@ -137,3 +137,17 @@ def test_scrub_event_tolerates_missing_or_odd_fields(value):
     event = {'exception': {'values': [{'value': value}]}, 'request': 'x', 'logentry': None}
     out = _sentry._scrub_event(event, {})
     assert out['exception']['values'][0]['value'] == value
+
+
+@pytest.mark.parametrize('text, secret', [
+    ('refresh failed: access_token=tok-AAA111 expired', 'tok-AAA111'),
+    ('client_secret=cs-BBB222&grant_type=client_credentials', 'cs-BBB222'),
+    ("bad config {'password': 'pw-CCC333', 'name': 'x'}", 'pw-CCC333'),
+    ('bad body {"api_key": "ak-DDD444"}', 'ak-DDD444'),
+    ('DB_PASSWORD="pw-EEE555" rejected', 'pw-EEE555'),
+    ('GET https://h.example/cb?code=c-FFF666&state=s-GGG777 failed', 'c-FFF666'),
+])
+def test_scrub_catches_prefixed_quoted_and_query_string_secrets(text, secret):
+    out = _sentry.scrub(text)
+    assert secret not in out
+    assert 's-GGG777' not in out
