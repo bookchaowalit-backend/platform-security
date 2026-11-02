@@ -24,7 +24,9 @@ _URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s:/@]{1,
 _KV_SECRET = re.compile(
     r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)"""
     # A quoted value runs to its closing quote (escapes included), or to the end if unterminated.
-    r"""(?:"(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?|[^\s&"',}]+)"""
+    # Unquoted, it runs to the next unescaped whitespace: libpq accepts ',', '}' or quotes inside a
+    # password and backslash-escaped spaces, so any shorter stop would leave part of it behind.
+    r"""(?:"(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?|(?:\\[\s\S]|[^\s\\])+)"""
 )
 _URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,512})\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
