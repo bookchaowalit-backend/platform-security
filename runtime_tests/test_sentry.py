@@ -43,6 +43,9 @@ def test_dsn_initialises_errors_only_without_pii(monkeypatch, capsys):
     assert kw['environment'] == 'production'
     assert kw['release'] == 'abc123'
     assert kw['traces_sample_rate'] is None
+    # No tracing also means no forwarding of incoming sentry-trace/baggage (user ids) on our own
+    # outbound requests, such as the JWKS fetch.
+    assert kw['trace_propagation_targets'] == []
     assert kw['send_default_pii'] is False
     assert kw['include_local_variables'] is False
     assert kw['max_request_body_size'] == 'never'
@@ -221,6 +224,8 @@ def test_a_server_500_reaches_sentry_scrubbed(monkeypatch):
         assert r.status_code == 500 and r.json() == {'detail': 'internal server error'}
         sentry_sdk.flush()
         assert len(events) == 1
+        # Reported as unhandled, so unhandled-error filters and alerts still see server failures.
+        assert events[0]['exception']['values'][-1]['mechanism']['handled'] is False
         text = str(events[0])
         assert 'RuntimeError' in text and 'pw-SRV500' not in text and '203.0' '.113.9' not in text
     finally:
@@ -293,3 +298,13 @@ def test_scrub_patterns_cannot_consume_each_others_keys(text, secret):
     out = _sentry.scrub(text)
     assert secret not in out
     assert 't-AAA' not in out
+
+
+def test_scrub_serialised_libpq_dsn_with_escaped_quote():
+    # repr()/str() of a libpq DSN doubles its backslashes, so the escaped quote looks like the
+    # closing one; the redaction must still cover the whole password.
+    from psycopg.conninfo import make_conninfo
+
+    dsn = make_conninfo(password="a' b " + 'SECRET_DSN')
+    for text in (repr(dsn), repr({'dsn': dsn}), str(ValueError('connect', dsn)), dsn):
+        assert 'SECRET_DSN' not in _sentry.scrub(text)
