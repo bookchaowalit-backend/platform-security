@@ -223,3 +223,17 @@ role; runtime role `security_runtime` is NOSUPERUSER NOBYPASSRLS with exactly th
 grants above. Connection strings live in Infisical `/platform-security`. JWT
 issuer is platform-identity, audience `security-api`. `/readyz` 200; unauthenticated
 API calls 401. No consumer is cut over yet.
+
+## Scrubber design — 2026-11-03
+
+Review rounds on PRs #4–#10 kept finding one class of leak: a pattern ran over text
+an earlier pattern had already rewritten, or one match consumed a key another pattern
+needed (a URL query running into the next JSON field; a libpq-style value running
+into the next key). `scrub()` therefore no longer chains `re.sub` calls for
+credentials. Every credential pattern (URL password, URL query, each secret key)
+reads the **original** text and only reports spans; each key's value end is the
+furthest any value shape reaches (quoted, structured, libpq), bounded at 512 with
+a fail-closed run to the next unescaped whitespace; the spans are merged and
+replaced once. A miss can only over-redact. Self-contained tokens (bearer, JWT,
+email, IP) and the fail-closed token pass run afterwards. Copy this design, not an
+earlier `_sentry.py`, into other services.
