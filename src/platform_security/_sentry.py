@@ -50,7 +50,7 @@ def _fail_closed(text: str) -> str:
         # Count, not presence: one scrubbed URL must not vouch for another in the same token.
         if "://" in tok and (tok.count("@") != tok.count(":***@") or tok.count("?") != tok.count("?***")):
             parts[i] = "***url***"
-        elif "eyJ" in tok and tok.count(".") >= 2:
+        elif "***jwt***" in tok or ("eyJ" in tok and tok.count(".") >= 2):
             parts[i] = "***jwt***"
         elif "***email***" in tok:
             parts[i] = "***email***"
