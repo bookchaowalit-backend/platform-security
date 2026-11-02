@@ -176,6 +176,7 @@ def test_scrub_is_bounded_on_long_hostile_input():
     ('a://x:pw-OK1@h/b://' + 'u' * 300 + ':pw-ZZZ000@h2', 'pw-ZZZ000'),
     ('https://h/?a=1&r=https://' + 'h' * 600 + '/p?code=c-YYY000', 'c-YYY000'),
     ('token eyJhbGciOiJSUzI1NiJ9.' + 'Q' * 5000 + '.sig-XXX000 rejected', 'sig-XXX000'),
+    ('token eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.' + 'S' * 4096 + 'TAIL-WWW000 rejected', 'TAIL-WWW000'),
 ])
 def test_scrub_fails_closed_at_bounds_and_cap(text, secret):
     out = _sentry.scrub(text)
