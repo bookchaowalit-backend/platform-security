@@ -24,7 +24,7 @@ _URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s:/@]{1,
 _KV_SECRET = re.compile(
     r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)"""
     # A quoted value runs to its closing quote (escapes included), or to the end if unterminated.
-    r"""(?:"(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?|[^\s&"',}]+)"""
+    r"""(?:"(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?|[^\s&"',}]+)"""
 )
 _URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,512})\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
@@ -32,9 +32,10 @@ _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _IPV6 = re.compile(r"(?i)\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b")
-# Compressed forms (2001:db8::1, fe80::1, ::1); not Rust/C++ paths like std::vec (letter before ::).
+# Compressed forms (2001:db8::1, fe80::1, ::1), also right after a colon (peer:2001:db8::1);
+# not Rust/C++ paths like std::vec (a letter or digit directly before the address).
 _IPV6_COMPRESSED = re.compile(
-    r"(?i)(?<![0-9a-z:])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?(?![0-9a-z:])"
+    r"(?i)(?<![0-9a-z])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?(?![0-9a-z])"
 )
 
 
