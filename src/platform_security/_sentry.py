@@ -22,15 +22,20 @@ _URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s:/@]{1,
 # key=value / key: value secrets in libpq-style conninfo strings and similar, including prefixed
 # keys (client_secret, access_token, DB_PASSWORD) and quoted dict/JSON keys and values
 _KV_SECRET = re.compile(
-    r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)(["']?)[^\s&"',}]+"""
+    r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)"""
+    # A quoted value runs to its closing quote (escapes included), or to the end if unterminated.
+    r"""(?:"(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?|[^\s&"',}]+)"""
 )
-# scheme://host/path?query -> scheme://host/path?*** (OAuth codes, signed-URL tokens)
 _URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,512})\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{0,4096}")
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _IPV6 = re.compile(r"(?i)\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b")
+# Compressed forms (2001:db8::1, fe80::1, ::1); not Rust/C++ paths like std::vec (letter before ::).
+_IPV6_COMPRESSED = re.compile(
+    r"(?i)(?<![0-9a-z:])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?(?![0-9a-z:])"
+)
 
 
 # Every pattern above is bounded and the input is pre-capped, so a huge or hostile message cannot
@@ -64,12 +69,13 @@ def scrub(text: str) -> str:
         text = head[:cut] if cut > 0 else ""
     text = _URL_PASSWORD.sub(r"\g<head>***", text)
     text = _URL_QUERY.sub(r"\g<head>?***", text)
-    text = _KV_SECRET.sub(r"\1\2\3***", text)
+    text = _KV_SECRET.sub(r"\1\2***", text)
     text = _BEARER.sub("Bearer ***", text)
     text = _JWT.sub("***jwt***", text)
     text = _EMAIL.sub("***email***", text)
     text = _IPV4.sub("***ip***", text)
-    text = _fail_closed(_IPV6.sub("***ip***", text))
+    text = _IPV6.sub("***ip***", text)
+    text = _fail_closed(_IPV6_COMPRESSED.sub("***ip***", text))
     if len(text) > MAX_SCRUB_CHARS:
         cut = text.rfind(" ", 0, MAX_SCRUB_CHARS)
         text = text[: cut if cut > 0 else MAX_SCRUB_CHARS] + TRUNCATED
@@ -106,6 +112,26 @@ def _scrub_event(event: dict[str, Any], _hint: dict[str, Any]) -> dict[str, Any]
     if isinstance(trace, dict):
         trace.pop("dynamic_sampling_context", None)
     return event
+
+
+class CaptureErrors:
+    """Innermost ASGI layer that reports unhandled exceptions, then re-raises them.
+
+    The shared core's boundary turns an unexpected exception into a redacted 500, so Sentry's
+    outer ASGI integration never sees it. A no-op while Sentry is not initialised.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await self.app(scope, receive, send)
+        except Exception as exc:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(exc)
+            raise
 
 
 def init_sentry() -> None:

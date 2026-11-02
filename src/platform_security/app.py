@@ -6,7 +6,9 @@ from fastapi.responses import JSONResponse
 from platform_backend_core import create_app as base_app
 from platform_backend_core import require_scope
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.middleware import Middleware
 
+from ._sentry import CaptureErrors
 from .store import Conflict, InvalidInput, SecurityStore
 
 # Scope dependencies built once at import (Ruff B008: no calls in argument defaults).
@@ -28,6 +30,8 @@ class Audit(BaseModel):
 def create_app(database,verifier):
     app=base_app('security',database,verifier,max_body_bytes=8192);store=SecurityStore(database)
     app.state.readiness_checks['security_schema_permissions']=store.ready
+    # Last in the list = innermost: inside the core boundary that turns errors into a 500.
+    app.user_middleware.append(Middleware(CaptureErrors))
     # Only the domain InvalidInput is a client error; any other exception (an unexpected
     # ValueError included) is a server bug and becomes the shared core's redacted 500.
     @app.exception_handler(InvalidInput)
