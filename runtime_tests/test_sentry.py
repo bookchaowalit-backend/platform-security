@@ -240,3 +240,14 @@ def test_scrub_complete_quoted_values_and_compressed_ipv6(text, secret):
 @pytest.mark.parametrize('text', ['std::vec::Vec failed', 'at 12:30:45 UTC', 'Foo::bar() raised'])
 def test_scrub_keeps_rust_paths_and_times(text):
     assert _sentry.scrub(text) == text
+
+
+@pytest.mark.parametrize('text, secret', [
+    ("cfg password='abc\\\nSECRET_NL tail' end", 'SECRET_NL'),
+    ('cfg {"token": "x\\\ny SECRET_NL2"}', 'SECRET_NL2'),
+    ('peer:2001:db8::1 closed', '2001:db8'),
+    ('addr=fe80::1:2: refused', 'fe80::1'),
+    ('dial [::1]:8080 failed', '::1'),
+])
+def test_scrub_escaped_newlines_and_colon_prefixed_ipv6(text, secret):
+    assert secret not in _sentry.scrub(text)
