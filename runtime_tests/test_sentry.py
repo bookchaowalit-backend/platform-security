@@ -159,7 +159,9 @@ def test_scrub_is_bounded_on_long_hostile_input():
     n = _sentry.MAX_INPUT_CHARS - 64  # under the pre-cap, so every pattern really runs
     for hostile in ('a' * n, 'x_' * (n // 2), 'a://' * (n // 4), 'a.' * (n // 2), '%' * n, 'a://b:' * (n // 6), 'x@' + 'a-' * (n // 2), 'eyJ-' * (n // 4), 'a' * 200_000):
         start = time.perf_counter()
-        out = _sentry.scrub(hostile + ' password')
+        # ~0.15 s locally, ~0.5 s on a CI runner under coverage; the quadratic patterns this
+        # guards against took 0.8 s to over 120 s on the same input.
+        assert time.perf_counter() - start < 2.0
         assert time.perf_counter() - start < 0.5
         assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
 
