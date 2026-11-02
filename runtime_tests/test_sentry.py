@@ -71,22 +71,7 @@ def test_release_is_unset_without_a_git_sha(monkeypatch):
     assert calls[0]['release'] is None
 
 
-def test_scrub_removes_url_passwords_tokens_jwts_emails_and_ips():
-    text = (
-        'connect postgresql://svc:'
-        's3cr%40t'  # split so secret scanners do not read a synthetic URL as a credential
-        '@ep-x.neon.tech/db failed; '
-        'password=hunter2 Authorization: Bearer abc.def-ghi '
-        'eyJhbGciOiJSUzI1NiJ9' '.' 'eyJzdWIiOiJvd25lciJ9' '.' 'c2lnbmF0dXJl'
-        ' for buyer.one+tag@example.co.th from 203.0.113.77 and 2001:db8:85a3:0:0:8a2e:370:7334'
-    )  # split: not a secret
-    out = _sentry.scrub(text)
-    for secret in ('s3cr%40t', 'hunter2', 'abc.def-ghi', 'eyJhbGciOiJSUzI1NiJ9', 'buyer.one', 'example.co.th', '203.0.113.77', '8a2e:370:7334'):
-        assert secret not in out
-    assert 'postgresql://svc:***@ep-x.neon.tech/db' in out
-
-
-def test_scrub_event_drops_request_details_user_and_extra():
+def test_scrub_event_drops_free_text_request_details_user_and_extra():
     event = {
         'exception': {'values': [{'value': 'bad url postgres://u:pw@h/db for a@b.example'}]},
         'message': 'contact a@b.example',
@@ -104,18 +89,17 @@ def test_scrub_event_drops_request_details_user_and_extra():
         'extra': {'sys.argv': ['--token', 't']},
     }
     out = _sentry._scrub_event(event, {})
-    assert out['exception']['values'][0]['value'] == 'bad url postgres://u:***@h/db for ***email***'
-    assert out['message'] == 'contact ***email***'
+    assert out['exception']['values'] == [{}]
+    assert 'message' not in out
     assert out['request'] == {'method': 'POST'}
     assert 'user' not in out
-    assert 'data' not in out['breadcrumbs']['values'][0]
-    assert 'abc' not in out['breadcrumbs']['values'][0]['message']
+    assert 'breadcrumbs' not in out
     assert 'extra' not in out
     for value in ('198.51.100.1', 'a@b.example', '1 Main Rd', 'token=t'):
         assert value not in str(out)
 
 
-def test_scrub_event_keeps_only_scrubbed_formatted_log_text():
+def test_scrub_event_drops_log_text():
     token = 'opaque' + '-token-value'
     event = {
         'logentry': {
@@ -125,7 +109,7 @@ def test_scrub_event_keeps_only_scrubbed_formatted_log_text():
         }
     }
     out = _sentry._scrub_event(event, {})
-    assert out['logentry'] == {'message': 'Authorization: Bearer ***'}
+    assert 'logentry' not in out
     assert token not in str(out)
 
 
@@ -137,56 +121,9 @@ def test_scrub_event_drops_dynamic_sampling_context():
 
 @pytest.mark.parametrize('value', [None, 42])
 def test_scrub_event_tolerates_missing_or_odd_fields(value):
-    event = {'exception': {'values': [{'value': value}]}, 'request': 'x', 'logentry': None}
+    event = {'exception': {'values': [{'value': value}, 'odd']}, 'request': 'x', 'logentry': None}
     out = _sentry._scrub_event(event, {})
-    assert out['exception']['values'][0]['value'] == value
-
-
-@pytest.mark.parametrize('text, secret', [
-    ('refresh failed: access_token=tok-AAA111 expired', 'tok-AAA111'),
-    ('client_secret=cs-BBB222&grant_type=client_credentials', 'cs-BBB222'),
-    ("bad config {'password': 'pw-CCC333', 'name': 'x'}", 'pw-CCC333'),
-    ('bad body {"api_key": "ak-DDD444"}', 'ak-DDD444'),
-    ('DB_PASSWORD="pw-EEE555" rejected', 'pw-EEE555'),
-    ('GET https://h.example/cb?code=c-FFF666&state=s-GGG777 failed', 'c-FFF666'),
-])
-def test_scrub_catches_prefixed_quoted_and_query_string_secrets(text, secret):
-    out = _sentry.scrub(text)
-    assert secret not in out
-    assert 's-GGG777' not in out
-
-
-def test_scrub_is_bounded_on_long_hostile_input():
-    import time
-
-    n = _sentry.MAX_INPUT_CHARS - 64  # under the pre-cap, so every pattern really runs
-    for hostile in ('a' * n, 'x_' * (n // 2), 'a://' * (n // 4), 'a.' * (n // 2), '%' * n, 'a://b:' * (n // 6), 'x@' + 'a-' * (n // 2), 'eyJ-' * (n // 4), 'token=' * (n // 6), 'pwd:' * (n // 4), 'token="' * (n // 7), 'a' * 200_000):
-        start = time.perf_counter()
-        out = _sentry.scrub(hostile + ' password')
-        # ~0.15 s locally, ~0.5 s on a CI runner under coverage; the quadratic patterns this
-        # guards against took 0.8 s to over 120 s on the same input.
-        assert time.perf_counter() - start < 2.0
-        assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
-
-
-@pytest.mark.parametrize('text, secret', [
-    # a credential straddling the length cap must not survive as a partial token
-    ('x ' * 4080 + 'postgresql://u:' + 'S' * 40 + '@h/db', 'SSSSSSSSSS'),
-    # past the pattern bounds the whole URL token is redacted (fail closed)
-    ('dial postgresql://' + 'u' * 300 + ':pw-HHH888@h/db', 'pw-HHH888'),
-    ('GET https://h.example/' + 'p' * 3000 + '?code=c-III999 failed', 'c-III999'),
-    ('dial postgresql://u:' + 'P' * 600 + '@h/db', 'PPPPPPPPPP'),
-    ('from ' + 'L' * 100 + '@example.com', 'LLLLLLLLLL'),
-    # one scrubbed URL must not vouch for an unscrubbed one in the same token
-    ('a://x:pw-OK1@h/b://' + 'u' * 300 + ':pw-ZZZ000@h2', 'pw-ZZZ000'),
-    ('https://h/?a=1&r=https://' + 'h' * 600 + '/p?code=c-YYY000', 'c-YYY000'),
-    ('token eyJhbGciOiJSUzI1NiJ9.' + 'Q' * 5000 + '.sig-XXX000 rejected', 'sig-XXX000'),
-    ('token eyJhbGciOiJSUzI1NiJ9' '.' 'eyJzdWIiOiJ4In0' '.' + 'S' * 4096 + 'TAIL-WWW000 rejected', 'TAIL-WWW000'),
-])
-def test_scrub_fails_closed_at_bounds_and_cap(text, secret):
-    out = _sentry.scrub(text)
-    assert secret not in out
-    assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
+    assert out['exception']['values'] == [{}, 'odd']
 
 
 def test_a_server_500_reaches_sentry_scrubbed(monkeypatch):
@@ -234,85 +171,92 @@ def test_a_server_500_reaches_sentry_scrubbed(monkeypatch):
     assert sentry_sdk.get_client().transport is None  # nothing can leave the test process
 
 
-@pytest.mark.parametrize('text, secret', [
+# Every secret-bearing shape the review rounds found (PRs #4-#13 and after). Fragments are joined at
+# runtime so no source line Sentry attaches holds a whole marker.
+_SECRET_MESSAGES = [
+    ('password=' + 'hunter2' + '-M01', 'hunter2-M01'),
+    ("password='a\\' b " + 'SEC' + "RET-M02'", 'RET-M02'),
+    ('Authorization: Bearer ' + 'tok' + '-M03', 'tok-M03'),
+    ('{"url":"https://h/?x=1","password":"prefix ' + 'SEC' + 'RET-M04"}', 'RET-M04'),
+    ('postgresql://u:pa ' + 'ss' + '-M05@h/db', 'ss-M05'),
+    ('see https://h/?*** and https://u:***@h/x?token=' + 'tok' + '-M06', 'tok-M06'),
+    ("cfg password=\\'unterminated " + 'SEC' + 'RET-M07', 'RET-M07'),
+    ('connect host=db password=a\\\\ ' + 'SEC' + 'RET-M08', 'RET-M08'),
+    ('from ' + 'buyer' + '-M09@example.com at 203.0.113.' + '77', 'buyer-M09'),
+    # earlier rounds' scrubber regressions, now sent through the real client
+    # a credential straddling the length cap must not survive as a partial token
+    ('x ' * 4080 + 'postgresql://u:' + 'S' * 40 + '@h/db', 'SSSSSSSSSS'),
+    # past the pattern bounds the whole URL token is redacted (fail closed)
+    ('dial postgresql://' + 'u' * 300 + ':pw-HHH888@h/db', 'pw-HHH888'),
+    ('GET https://h.example/' + 'p' * 3000 + '?code=c-III999 failed', 'c-III999'),
+    ('dial postgresql://u:' + 'P' * 600 + '@h/db', 'PPPPPPPPPP'),
+    ('from ' + 'L' * 100 + '@example.com', 'LLLLLLLLLL'),
+    # one scrubbed URL must not vouch for an unscrubbed one in the same token
+    ('a://x:pw-OK1@h/b://' + 'u' * 300 + ':pw-ZZZ000@h2', 'pw-ZZZ000'),
+    ('https://h/?a=1&r=https://' + 'h' * 600 + '/p?code=c-YYY000', 'c-YYY000'),
+    ('token eyJhbGciOiJSUzI1NiJ9.' + 'Q' * 5000 + '.sig-XXX000 rejected', 'sig-XXX000'),
+    ('token eyJhbGciOiJSUzI1NiJ9' '.' 'eyJzdWIiOiJ4In0' '.' + 'S' * 4096 + 'TAIL-WWW000 rejected', 'TAIL-WWW000'),
+
+    ('refresh failed: access_token=tok-AAA111 expired', 'tok-AAA111'),
+    ('client_secret=cs-BBB222&grant_type=client_credentials', 'cs-BBB222'),
+    ("bad config {'password': 'pw-CCC333', 'name': 'x'}", 'pw-CCC333'),
+    ('bad body {"api_key": "ak-DDD444"}', 'ak-DDD444'),
+    ('DB_PASSWORD="pw-EEE555" rejected', 'pw-EEE555'),
+    ('GET https://h.example/cb?code=c-FFF666&state=s-GGG777 failed', 'c-FFF666'),
     ("login password='correct horse battery staple' failed", 'battery staple'),
     ("cfg {'password': 'prefix,SECRET_SUFFIX'}", 'SECRET_SUFFIX'),
     ('cfg {"client_secret": "a\\"b SECRET_ESC"}', 'SECRET_ESC'),
     ('dial from 2001:db8::7334 refused', '2001:db8::7334'),
     ('peer fe80::1ff:fe23:4567:890a closed', 'fe80::1ff'),
     ('bind ::1 ok', '::1'),
-])
-def test_scrub_complete_quoted_values_and_compressed_ipv6(text, secret):
-    assert secret not in _sentry.scrub(text)
-
-
-@pytest.mark.parametrize('text', ['std::vec::Vec failed', 'at 12:30:45 UTC', 'Foo::bar() raised'])
-def test_scrub_keeps_rust_paths_and_times(text):
-    assert _sentry.scrub(text) == text
-
-
-@pytest.mark.parametrize('text, secret', [
     ("cfg password='abc\\\nSECRET_NL tail' end", 'SECRET_NL'),
     ('cfg {"token": "x\\\ny SECRET_NL2"}', 'SECRET_NL2'),
     ('peer:2001:db8::1 closed', '2001:db8'),
     ('addr=fe80::1:2: refused', 'fe80::1'),
     ('dial [::1]:8080 failed', '::1'),
-])
-def test_scrub_escaped_newlines_and_colon_prefixed_ipv6(text, secret):
-    assert secret not in _sentry.scrub(text)
-
-
-@pytest.mark.parametrize('text, secret', [
     ('connect host=db password=,SENSITIVE_VALUE dbname=x', 'SENSITIVE_VALUE'),
     ('connect host=db password=prefix,SECRET_SUFFIX dbname=x', 'SECRET_SUFFIX'),
     ('connect password=a\\ SECRET_SPACE dbname=x', 'SECRET_SPACE'),
     ('connect password=pre}SECRET_BRACE x', 'SECRET_BRACE'),
     ("connect password=pre'SECRET_QUOTE x", 'SECRET_QUOTE'),
-])
-def test_scrub_complete_unquoted_libpq_values(text, secret):
-    out = _sentry.scrub(text)
-    assert secret not in out
-    assert 'dbname=x' in out or 'dbname' not in text
-
-
-@pytest.mark.parametrize('text, secret', [
     ('{"token":null,"password":"prefix SECRET_SUFFIX"}', 'SECRET_SUFFIX'),
     ("{'token': 1, 'client_secret': 'a b SECRET_TWO'}", 'SECRET_TWO'),
     ('password=x,api_key="k SECRET_THREE"', 'SECRET_THREE'),
     ('{"pwd":"","secret":"s SECRET_FOUR"}', 'SECRET_FOUR'),
-])
-def test_scrub_adjacent_structured_fields(text, secret):
-    assert secret not in _sentry.scrub(text)
-
-
-@pytest.mark.parametrize('text, secret', [
-    # an embedded secret-like key must not consume the next key during any pass
     ("password=foo,token= sslpassword='prefix SECRET_SUFFIX' dbname=x", 'SECRET_SUFFIX'),
-    # a URL query must not consume the adjacent structured secret
     ('{"url":"https://example.test/?x=1","password":"prefix SECRET_SUFFIX"}', 'SECRET_SUFFIX'),
     ('see https://h/p?token=t-AAA&next=1 and {"secret":"s b SECRET_B"}', 'SECRET_B'),
     ('{"token":"a b SECRET_C","url":"https://h/?q=1"}', 'SECRET_C'),
     ('token=token=token= password="x y SECRET_D"', 'SECRET_D'),
-])
-def test_scrub_patterns_cannot_consume_each_others_keys(text, secret):
-    out = _sentry.scrub(text)
-    assert secret not in out
-    assert 't-AAA' not in out
+    ('cfg password=\\\'a "b" c SECRET_EQ\\\' end', 'SECRET_EQ'),
+    ('cfg password=\\"a \'b\' c SECRET_EQ\\" end', 'SECRET_EQ'),
+]
 
 
-def test_scrub_serialised_libpq_dsn_with_escaped_quote():
-    # repr()/str() of a libpq DSN doubles its backslashes, so the escaped quote looks like the
-    # closing one; the redaction must still cover the whole password.
-    from psycopg.conninfo import make_conninfo
+@pytest.mark.parametrize('message, secret', _SECRET_MESSAGES)
+def test_no_exception_text_leaves_the_process(monkeypatch, message, secret):
+    events: list[dict[str, Any]] = []
 
-    dsn = make_conninfo(password="a' b " + 'SECRET_DSN')
-    for text in (repr(dsn), repr({'dsn': dsn}), str(ValueError('connect', dsn)), dsn):
-        assert 'SECRET_DSN' not in _sentry.scrub(text)
+    class _Memory(sentry_sdk.transport.Transport):
+        def capture_envelope(self, envelope):
+            events.extend(item.payload.json for item in envelope.items if item.type == 'event')
 
-
-@pytest.mark.parametrize('text', [
-    "cfg password=\\'a \"b\" c SECRET_EQ\\' end",
-    'cfg password=\\"a \'b\' c SECRET_EQ\\" end',
-])
-def test_scrub_value_starting_with_an_escaped_quote(text):
-    assert 'SECRET_EQ' not in _sentry.scrub(text)
+    real_init = sentry_sdk.init
+    monkeypatch.setattr(sentry_sdk, 'init', lambda **kw: real_init(transport=_Memory, **kw))
+    monkeypatch.setenv('SENTRY_DSN', 'https://k@o0.ingest.sentry.io/1')
+    _sentry.init_sentry()
+    try:
+        try:
+            raise ValueError(message)
+        except ValueError as exc:
+            sentry_sdk.capture_exception(exc)
+        sentry_sdk.capture_message(message)
+        sentry_sdk.add_breadcrumb(message=message)
+        sentry_sdk.capture_exception(RuntimeError('after breadcrumb'))
+        sentry_sdk.flush()
+    finally:
+        real_init(dsn='')
+    assert len(events) == 3
+    for event in events:
+        assert secret not in str(event)
+    assert events[0]['exception']['values'][-1]['type'] == 'ValueError'
