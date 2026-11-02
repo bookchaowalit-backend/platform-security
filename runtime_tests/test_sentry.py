@@ -157,7 +157,7 @@ def test_scrub_is_bounded_on_long_hostile_input():
     import time
 
     n = _sentry.MAX_INPUT_CHARS - 64  # under the pre-cap, so every pattern really runs
-    for hostile in ('a' * n, 'x_' * (n // 2), 'a://' * (n // 4), 'a.' * (n // 2), '%' * n, 'a://b:' * (n // 6), 'x@' + 'a-' * (n // 2), 'eyJ-' * (n // 4), 'a' * 200_000):
+    for hostile in ('a' * n, 'x_' * (n // 2), 'a://' * (n // 4), 'a.' * (n // 2), '%' * n, 'a://b:' * (n // 6), 'x@' + 'a-' * (n // 2), 'eyJ-' * (n // 4), 'token=' * (n // 6), 'pwd:' * (n // 4), 'token="' * (n // 7), 'a' * 200_000):
         start = time.perf_counter()
         out = _sentry.scrub(hostile + ' password')
         # ~0.15 s locally, ~0.5 s on a CI runner under coverage; the quadratic patterns this
@@ -278,3 +278,18 @@ def test_scrub_complete_unquoted_libpq_values(text, secret):
 ])
 def test_scrub_adjacent_structured_fields(text, secret):
     assert secret not in _sentry.scrub(text)
+
+
+@pytest.mark.parametrize('text, secret', [
+    # an embedded secret-like key must not consume the next key during any pass
+    ("password=foo,token= sslpassword='prefix SECRET_SUFFIX' dbname=x", 'SECRET_SUFFIX'),
+    # a URL query must not consume the adjacent structured secret
+    ('{"url":"https://example.test/?x=1","password":"prefix SECRET_SUFFIX"}', 'SECRET_SUFFIX'),
+    ('see https://h/p?token=t-AAA&next=1 and {"secret":"s b SECRET_B"}', 'SECRET_B'),
+    ('{"token":"a b SECRET_C","url":"https://h/?q=1"}', 'SECRET_C'),
+    ('token=token=token= password="x y SECRET_D"', 'SECRET_D'),
+])
+def test_scrub_patterns_cannot_consume_each_others_keys(text, secret):
+    out = _sentry.scrub(text)
+    assert secret not in out
+    assert 't-AAA' not in out
