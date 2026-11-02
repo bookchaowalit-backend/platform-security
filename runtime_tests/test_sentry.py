@@ -224,7 +224,9 @@ def test_a_server_500_reaches_sentry_scrubbed(monkeypatch):
         text = str(events[0])
         assert 'RuntimeError' in text and 'pw-SRV500' not in text and '203.0' '.113.9' not in text
     finally:
-        real_init(dsn=None)
+        # dsn=None would read SENTRY_DSN (still set here) and start a real, unscrubbed client.
+        real_init(dsn='')
+    assert sentry_sdk.get_client().transport is None  # nothing can leave the test process
 
 
 @pytest.mark.parametrize('text, secret', [
@@ -253,3 +255,16 @@ def test_scrub_keeps_rust_paths_and_times(text):
 ])
 def test_scrub_escaped_newlines_and_colon_prefixed_ipv6(text, secret):
     assert secret not in _sentry.scrub(text)
+
+
+@pytest.mark.parametrize('text, secret', [
+    ('connect host=db password=,SENSITIVE_VALUE dbname=x', 'SENSITIVE_VALUE'),
+    ('connect host=db password=prefix,SECRET_SUFFIX dbname=x', 'SECRET_SUFFIX'),
+    ('connect password=a\\ SECRET_SPACE dbname=x', 'SECRET_SPACE'),
+    ('connect password=pre}SECRET_BRACE x', 'SECRET_BRACE'),
+    ("connect password=pre'SECRET_QUOTE x", 'SECRET_QUOTE'),
+])
+def test_scrub_complete_unquoted_libpq_values(text, secret):
+    out = _sentry.scrub(text)
+    assert secret not in out
+    assert 'dbname=x' in out or 'dbname' not in text
