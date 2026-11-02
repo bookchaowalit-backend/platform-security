@@ -237,3 +237,18 @@ a fail-closed run to the next unescaped whitespace; the spans are merged and
 replaced once. A miss can only over-redact. Self-contained tokens (bearer, JWT,
 email, IP) and the fail-closed token pass run afterwards. Copy this design, not an
 earlier `_sentry.py`, into other services.
+
+## No free text to Sentry — 2026-11-03 (supersedes "Scrubber design")
+
+The span design closed the swallowed-key class, but the next review rounds still
+found shapes it missed (bearer prefixes rewritten first, literal `***` in input
+treated as a redaction marker, escaped spaces in serialised DSNs, unterminated
+escaped quotes, whitespace in URI passwords). Pattern scrubbing of free text can
+always be bypassed by one more serialisation, and this service handles credentials,
+so `_scrub_event` no longer sends any: exception messages (`exception.values[].value`),
+`message`, `logentry` and breadcrumbs are dropped. Events keep the exception type,
+the stack (file, function, line; locals were already off), the route template
+(`transaction`), tags and release. `runtime_tests/test_sentry.py` sends every
+secret shape from the review rounds through the production configuration with a
+memory transport and asserts none reaches the event. Other services should copy this
+version; the regex scrubber is gone.
