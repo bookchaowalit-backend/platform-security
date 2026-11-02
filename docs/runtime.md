@@ -205,3 +205,21 @@ GREEN: `PLATFORM_TEST_DSN=... pytest -q` 88 passed, 12 subtests, against
 PostgreSQL 16 (`pgserver`); `--cov` total 87% (gate 87); `bash scripts/check.sh`
 57 tests OK; `ruff check .` and `mypy` clean (locked `uv sync --frozen
 --all-extras`). Nothing deployed.
+
+## Sentry and first deployment — 2026-11-02 (branch `sentry`)
+
+Repo-owned copy of the `platform-logistics` `_sentry.py` (507cce5): a no-op
+without `SENTRY_DSN`; errors only, no tracing, `send_default_pii=False`, and a
+`before_send` that keeps only the request method and scrubs credentials, JWTs,
+email and IP addresses. RED: `runtime_tests/test_sentry.py` failed at collection
+(no `sentry_sdk`, no `_sentry`); GREEN: 98 passed with PostgreSQL 16 (`pgserver`),
+coverage 88% (gate 87), `ruff`, `mypy` and `scripts/check.sh` clean.
+
+Deployed (owner go 2026-11-02): Railway project `platform-security`, service
+`security-api`, `asia-southeast1-eqsg3a`, sleep on,
+`https://security-api-production-f817.up.railway.app`. Dedicated Neon project
+`platform-security` (aws-ap-southeast-1, PG 16): `migrate` ran once with the owner
+role; runtime role `security_runtime` is NOSUPERUSER NOBYPASSRLS with exactly the
+grants above. Connection strings live in Infisical `/platform-security`. JWT
+issuer is platform-identity, audience `security-api`. `/readyz` 200; unauthenticated
+API calls 401. No consumer is cut over yet.
