@@ -106,7 +106,11 @@ def _value_end(text: str, start: int, nxt: list[int], last_quote: dict[str, list
     # inside the password looks like the closing one.
     ends = [start]
     quote = text[start : start + 1]
-    if quote in _QUOTED_AT:
+    if quote == "\\" and text[start + 1 : start + 2] in _QUOTED_AT:
+        # An escaped quote opens the value (\' in a repr'd string): quoted from there on.
+        quote = text[start + 1]
+        ends.append(last_quote[quote][start + 1] + 1)
+    elif quote in _QUOTED_AT:
         m = _QUOTED_AT[quote].match(text, start)
         ends.append(m.end() if m else len(text))
         ends.append(last_quote[quote][start] + 1)

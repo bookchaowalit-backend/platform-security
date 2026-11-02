@@ -308,3 +308,11 @@ def test_scrub_serialised_libpq_dsn_with_escaped_quote():
     dsn = make_conninfo(password="a' b " + 'SECRET_DSN')
     for text in (repr(dsn), repr({'dsn': dsn}), str(ValueError('connect', dsn)), dsn):
         assert 'SECRET_DSN' not in _sentry.scrub(text)
+
+
+@pytest.mark.parametrize('text', [
+    "cfg password=\\'a \"b\" c SECRET_EQ\\' end",
+    'cfg password=\\"a \'b\' c SECRET_EQ\\" end',
+])
+def test_scrub_value_starting_with_an_escaped_quote(text):
+    assert 'SECRET_EQ' not in _sentry.scrub(text)
