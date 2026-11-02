@@ -18,30 +18,47 @@ import sys
 from typing import Any
 
 # scheme://user:password@host -> scheme://user:***@host
-_URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s:/@]{1,256}:)[^\s@]+(?=@)")
+_URL_PASSWORD = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s:/@]{1,256}:)[^\s@]{1,512}(?=@)")
 # key=value / key: value secrets in libpq-style conninfo strings and similar, including prefixed
 # keys (client_secret, access_token, DB_PASSWORD) and quoted dict/JSON keys and values
 _KV_SECRET = re.compile(
     r"""(?i)([A-Za-z0-9_-]{0,64}(?:password|passwd|pwd|secret|token|api[_-]?key)["']?)(\s*[=:]\s*)(["']?)[^\s&"',}]+"""
 )
 # scheme://host/path?query -> scheme://host/path?*** (OAuth codes, signed-URL tokens)
-_URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,2048})\?[^\s#]*")
+_URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,512})\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*")
-_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+_EMAIL = re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _IPV6 = re.compile(r"(?i)\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b")
 
 
-# Every pattern below is bounded, and input is capped first, so a huge or hostile message
-# cannot stall error reporting.
+# Every pattern above is bounded and the input is pre-capped, so a huge or hostile message cannot
+# stall error reporting. The pre-cap drops the trailing partial token (which could be half a
+# secret), and the output is truncated only after scrubbing.
 MAX_SCRUB_CHARS = 8192
+MAX_INPUT_CHARS = 65536
 TRUNCATED = "...[truncated]"
+_TOKENS = re.compile(r"(\s+)")
+
+
+def _fail_closed(text: str) -> str:
+    # Past a pattern bound a URL can still carry credentials or a query, and an email can keep the
+    # start of a long local part: drop the whole token.
+    parts = _TOKENS.split(text)
+    for i, tok in enumerate(parts):
+        if "://" in tok and (("@" in tok and ":***@" not in tok) or ("?" in tok and "?***" not in tok)):
+            parts[i] = "***url***"
+        elif "***email***" in tok:
+            parts[i] = "***email***"
+    return "".join(parts)
 
 
 def scrub(text: str) -> str:
-    if len(text) > MAX_SCRUB_CHARS:
-        text = text[:MAX_SCRUB_CHARS] + TRUNCATED
+    if len(text) > MAX_INPUT_CHARS:
+        head = text[:MAX_INPUT_CHARS]
+        cut = max(head.rfind(" "), head.rfind("\n"), head.rfind("\t"))
+        text = head[:cut] if cut > 0 else ""
     text = _URL_PASSWORD.sub(r"\g<head>***", text)
     text = _URL_QUERY.sub(r"\g<head>?***", text)
     text = _KV_SECRET.sub(r"\1\2\3***", text)
@@ -49,7 +66,11 @@ def scrub(text: str) -> str:
     text = _JWT.sub("***jwt***", text)
     text = _EMAIL.sub("***email***", text)
     text = _IPV4.sub("***ip***", text)
-    return _IPV6.sub("***ip***", text)
+    text = _fail_closed(_IPV6.sub("***ip***", text))
+    if len(text) > MAX_SCRUB_CHARS:
+        cut = text.rfind(" ", 0, MAX_SCRUB_CHARS)
+        text = text[: cut if cut > 0 else MAX_SCRUB_CHARS] + TRUNCATED
+    return text
 
 
 def _scrub_event(event: dict[str, Any], _hint: dict[str, Any]) -> dict[str, Any]:

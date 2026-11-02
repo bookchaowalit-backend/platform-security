@@ -156,8 +156,24 @@ def test_scrub_catches_prefixed_quoted_and_query_string_secrets(text, secret):
 def test_scrub_is_bounded_on_long_hostile_input():
     import time
 
-    hostile = 'a' * 200_000 + ' ' + 'x_' * 100_000 + 'password'
-    start = time.perf_counter()
-    out = _sentry.scrub(hostile)
-    assert time.perf_counter() - start < 0.5
+    n = _sentry.MAX_INPUT_CHARS - 64  # under the pre-cap, so every pattern really runs
+    for hostile in ('a' * n, 'x_' * (n // 2), 'a://' * (n // 4), 'a.' * (n // 2), '%' * n, 'a://b:' * (n // 6), 'x@' + 'a-' * (n // 2), 'a' * 200_000):
+        start = time.perf_counter()
+        out = _sentry.scrub(hostile + ' password')
+        assert time.perf_counter() - start < 0.5
+        assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
+
+
+@pytest.mark.parametrize('text, secret', [
+    # a credential straddling the length cap must not survive as a partial token
+    ('x ' * 4080 + 'postgresql://u:' + 'S' * 40 + '@h/db', 'SSSSSSSSSS'),
+    # past the pattern bounds the whole URL token is redacted (fail closed)
+    ('dial postgresql://' + 'u' * 300 + ':pw-HHH888@h/db', 'pw-HHH888'),
+    ('GET https://h.example/' + 'p' * 3000 + '?code=c-III999 failed', 'c-III999'),
+    ('dial postgresql://u:' + 'P' * 600 + '@h/db', 'PPPPPPPPPP'),
+    ('from ' + 'L' * 100 + '@example.com', 'LLLLLLLLLL'),
+])
+def test_scrub_fails_closed_at_bounds_and_cap(text, secret):
+    out = _sentry.scrub(text)
+    assert secret not in out
     assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
