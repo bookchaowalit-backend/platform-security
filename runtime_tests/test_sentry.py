@@ -182,3 +182,61 @@ def test_scrub_fails_closed_at_bounds_and_cap(text, secret):
     out = _sentry.scrub(text)
     assert secret not in out
     assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
+
+
+def test_a_server_500_reaches_sentry_scrubbed(monkeypatch):
+    # The shared core's boundary turns unexpected exceptions into a redacted 500 before an outer
+    # ASGI layer sees them, so the app must capture them itself (inside that boundary).
+    from uuid import uuid4
+
+    from fastapi.testclient import TestClient
+    from test_error_mapping import _NoDatabase
+    from test_http import auth
+
+    from platform_security.app import create_app
+    from platform_security.store import SecurityStore
+
+    events: list[dict[str, Any]] = []
+
+    class _Memory(sentry_sdk.transport.Transport):
+        def capture_envelope(self, envelope):
+            events.extend(item.payload.json for item in envelope.items if item.type == 'event')
+
+    real_init = sentry_sdk.init
+    # The production configuration, with only the transport swapped for memory.
+    monkeypatch.setattr(sentry_sdk, 'init', lambda **kw: real_init(transport=_Memory, **kw))
+    monkeypatch.setenv('SENTRY_DSN', 'https://k@o0.ingest.sentry.io/1')
+    _sentry.init_sentry()
+    # Built from parts so the source lines Sentry attaches do not contain the values either.
+    message = 'db password=' + 'pw-' + 'SRV500' + ' at ' + '203.0' + '.113.9'
+    try:
+        def broken(*args, **kwargs):
+            raise RuntimeError(message)
+        monkeypatch.setattr(SecurityStore, 'list_references', broken)
+        verifier, headers = auth()
+        with TestClient(create_app(_NoDatabase(), verifier)) as c:
+            r = c.get('/v1/secret-references', headers=headers('references:read', uuid4()))
+        assert r.status_code == 500 and r.json() == {'detail': 'internal server error'}
+        sentry_sdk.flush()
+        assert len(events) == 1
+        text = str(events[0])
+        assert 'RuntimeError' in text and 'pw-SRV500' not in text and '203.0' '.113.9' not in text
+    finally:
+        real_init(dsn=None)
+
+
+@pytest.mark.parametrize('text, secret', [
+    ("login password='correct horse battery staple' failed", 'battery staple'),
+    ("cfg {'password': 'prefix,SECRET_SUFFIX'}", 'SECRET_SUFFIX'),
+    ('cfg {"client_secret": "a\\"b SECRET_ESC"}', 'SECRET_ESC'),
+    ('dial from 2001:db8::7334 refused', '2001:db8::7334'),
+    ('peer fe80::1ff:fe23:4567:890a closed', 'fe80::1ff'),
+    ('bind ::1 ok', '::1'),
+])
+def test_scrub_complete_quoted_values_and_compressed_ipv6(text, secret):
+    assert secret not in _sentry.scrub(text)
+
+
+@pytest.mark.parametrize('text', ['std::vec::Vec failed', 'at 12:30:45 UTC', 'Foo::bar() raised'])
+def test_scrub_keeps_rust_paths_and_times(text):
+    assert _sentry.scrub(text) == text
