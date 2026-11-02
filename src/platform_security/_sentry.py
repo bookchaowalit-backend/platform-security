@@ -27,7 +27,7 @@ _KV_SECRET = re.compile(
 # scheme://host/path?query -> scheme://host/path?*** (OAuth codes, signed-URL tokens)
 _URL_QUERY = re.compile(r"(?P<head>[a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^\s?#]{0,512})\?[^\s#]*")
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
-_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*")
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{0,4096}")
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _IPV6 = re.compile(r"(?i)\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b")
@@ -43,12 +43,15 @@ _TOKENS = re.compile(r"(\s+)")
 
 
 def _fail_closed(text: str) -> str:
-    # Past a pattern bound a URL can still carry credentials or a query, and an email can keep the
-    # start of a long local part: drop the whole token.
+    # Past a pattern bound a URL can still carry credentials or a query, a JWT can be too long to
+    # match, and an email can keep the start of a long local part: drop the whole token.
     parts = _TOKENS.split(text)
     for i, tok in enumerate(parts):
-        if "://" in tok and (("@" in tok and ":***@" not in tok) or ("?" in tok and "?***" not in tok)):
+        # Count, not presence: one scrubbed URL must not vouch for another in the same token.
+        if "://" in tok and (tok.count("@") != tok.count(":***@") or tok.count("?") != tok.count("?***")):
             parts[i] = "***url***"
+        elif "eyJ" in tok and tok.count(".") >= 2:
+            parts[i] = "***jwt***"
         elif "***email***" in tok:
             parts[i] = "***email***"
     return "".join(parts)
