@@ -151,3 +151,13 @@ def test_scrub_catches_prefixed_quoted_and_query_string_secrets(text, secret):
     out = _sentry.scrub(text)
     assert secret not in out
     assert 's-GGG777' not in out
+
+
+def test_scrub_is_bounded_on_long_hostile_input():
+    import time
+
+    hostile = 'a' * 200_000 + ' ' + 'x_' * 100_000 + 'password'
+    start = time.perf_counter()
+    out = _sentry.scrub(hostile)
+    assert time.perf_counter() - start < 0.5
+    assert len(out) <= _sentry.MAX_SCRUB_CHARS + len(_sentry.TRUNCATED)
