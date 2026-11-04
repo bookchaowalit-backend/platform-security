@@ -2,6 +2,8 @@
 
 ชุด diagram 22 รายการตาม SDLC Diagram Catalog v2 (knowledge-base `knowledge/tech/core-cs/sdlc-diagram-catalog.md`) วาดจาก code / config ของ repo นี้ที่ `main` 0187719 (2026-11-03) ทุก diagram มี `Sources:` และ "Open questions" แยกไว้ hosting facts ที่ไม่อยู่ใน repo อ้าง `ops record: book-platforms-status (2026-11-03)`
 
+สรุปสถาปัตยกรรมระดับระบบ (style, quality attributes, integrations, fitness functions): [`DOCPACK/02-architecture.md`](../../DOCPACK/02-architecture.md)
+
 | # | Item | Status | File | Sources read |
 |---|---|---|---|---|
 | 01 | Business process (As-Is / To-Be) | done | [01-business-process.md](01-business-process.md) | contract.json, PRODUCT.md, README.md, app.py, store.py, BOO-163 gate doc |
