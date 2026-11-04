@@ -48,7 +48,12 @@ SHA (tag in a trailing comment). Upgrading the core means changing the commit in
 - Configure `JWT_ISSUER`, `JWT_AUDIENCE`, and exactly one `JWT_PUBLIC_KEY`
   (public PEM) or `JWT_JWKS_URL` (trusted HTTPS). Credentials never come from
   files or token-supplied URLs. Use the shared-core workspace RS256 profile.
-- `GET /healthz`, `/readyz`, `/metrics` use shared redacted diagnostics.
+- `GET /healthz` and `/readyz` use shared redacted diagnostics. `/metrics`, `/openapi.json`,
+  `/docs` and `/redoc` are removed from the public app (404); the API schema is `contracts/`.
+- `EdgeGuard` (`_edge.py`) is the outermost middleware: per client (Railway `X-Real-IP`,
+  else the socket peer) 2 requests/s with a burst of 60, and after 10 answers of 401/403 the
+  client gets 429 with `Retry-After` until the budget refills (one per 30 s). State is in
+  process (one replica) and bounded to 4096 clients.
   Readiness checks exact applied migration versions/checksums, table RLS, effective
   schema USAGE/history SELECT and every required table operation individually;
   missing schema returns generic 503. Setup and serving are separate commands.

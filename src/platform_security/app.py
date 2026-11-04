@@ -8,6 +8,7 @@ from platform_backend_core import require_scope
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware import Middleware
 
+from ._edge import EdgeGuard
 from ._sentry import CaptureErrors
 from .store import Conflict, InvalidInput, SecurityStore
 
@@ -16,6 +17,7 @@ REFERENCES_READ=Depends(require_scope('references:read'))
 REFERENCES_WRITE=Depends(require_scope('references:write'))
 AUDIT_READ=Depends(require_scope('audit:read'))
 AUDIT_WRITE=Depends(require_scope('audit:write'))
+_PRIVATE_PATHS={'/openapi.json','/docs','/docs/oauth2-redirect','/redoc','/metrics'}
 
 class Reference(BaseModel):
     model_config=ConfigDict(extra='forbid')
@@ -30,6 +32,11 @@ class Audit(BaseModel):
 def create_app(database,verifier):
     app=base_app('security',database,verifier,max_body_bytes=8192);store=SecurityStore(database)
     app.state.readiness_checks['security_schema_permissions']=store.ready
+    # Nothing on the public URL describes the API or its traffic: the schema lives in contracts/.
+    app.router.routes[:]=[r for r in app.router.routes if getattr(r,'path',None) not in _PRIVATE_PATHS]
+    app.openapi_url=app.docs_url=app.redoc_url=None
+    # add_middleware = outermost, so throttled clients never reach token verification.
+    app.add_middleware(EdgeGuard)
     # Last in the list = innermost: inside the core boundary that turns errors into a 500.
     app.user_middleware.append(Middleware(CaptureErrors))
     # Only the domain InvalidInput is a client error; any other exception (an unexpected

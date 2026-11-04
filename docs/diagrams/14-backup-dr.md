@@ -13,7 +13,7 @@
 ```mermaid
 flowchart LR
   APP["security-api"] -->|"writes"| NEON[("Neon platform-security")]
-  NEON -.->|"backup job? not confirmed"| R2[("R2 db-backups")]
+  NEON -->|"nightly 19:00 UTC pg_dump → age (ops-backups/db-backup, role db_backup)"| R2[("R2 db-backups")]
   NEON -.->|"Neon provider history, not documented here"| PITR["Provider restore"]
   INF["Infisical /platform-security"] -->|"DATABASE_URL, SENTRY_DSN"| RW["Railway variables"]
   GH["GitHub repo"] -->|"git archive + railway up"| APP
@@ -29,17 +29,23 @@ Sources: `src/platform_security/migrations.py`, `docs/runtime.md` (Verification 
 - repo นี้ **ไม่มี** backup workflow หรือ script
 - `docs/runtime.md`: "Runtime role and backup/restore provisioning remain operator release work"; "no scheduled deletion or backup credential access is implemented here"
 - Rollback rule (`docs/runtime.md`): หยุด runtime แล้วคืน consumer ไป adapter เดิม; **ห้าม** downgrade SQL หรือเขียนทับ live DB; restore ไป DB ใหม่ที่แยก แล้ว verify synthetic workspace reads ก่อน cutover
-- Central baseline ADR-0002 กำหนด nightly `pg_dump` → age → R2 `db-backups` ด้วย role `db_backup` ต่อ Neon project — แต่ไม่มีหลักฐานว่า Neon `platform-security` (สร้าง 2026-11-02) ถูกเพิ่มเป็น target แล้ว
+- Nightly backup (ADR-0002) รวม service นี้แล้วตั้งแต่ 2026-11-04: Neon role `db_backup` (สมาชิก `neon_superuser`, BYPASSRLS — จำเป็นเพราะ forced RLS), target `platform-security` ใน `BACKUP_TARGETS` และ `BACKUP_URL_PLATFORM_SECURITY` ของ Railway `ops-backups/db-backup` (cron 19:00 UTC) → age → R2 `db-backups` (14 / 56 / 365 วัน)
+- Restore test 2026-11-04: `pg_dump -Fc` ด้วย role `db_backup` → `pg_restore --no-owner --no-privileges` ลง scratch PG 16 → row count ตรงกันทุกตาราง (`security_audit` 22, `secret_references` 0, `platform_schema_migrations` 1) แล้วลบ scratch DB
 - trigger `immutable_audit` กัน TRUNCATE/DELETE จาก runtime role แต่ไม่กัน DDL role / การลบ Neon project
 
 ## RTO / RPO
 
-- RTO: **not defined**
-- RPO: **not defined**
+| Scenario | RPO | RTO | How |
+|---|---|---|---|
+| Bad write / accidental change (Neon project still there) | ≤ Neon history window (PITR) | 1 h | Neon branch at a timestamp → verify → point a NEW runtime at it |
+| Neon project or account lost | 24 h (nightly dump) | 4 h | newest R2 dump → age decrypt → new Neon project → `migrate` check → readiness 200 → switch `DATABASE_URL` |
+| Service / image lost | 0 (data untouched) | 30 min | `git archive main` + `railway up --ci` |
+
+Audit is append-only and cannot be recreated, so the 24 h RPO is the accepted worst case on the free plan. Callers retry `POST /v1/audit` with the same `Idempotency-Key`, so events sent during an outage are not lost if the caller keeps them.
+
+Restore drill: the monthly drill (`platform-db-backup/docs/runbook.md`) lists `platform-security` in `DRILL_TARGETS` from 2026-11; the drill creates the role its RLS policies name (`security_runtime`) as NOLOGIN before restoring, and compares row counts with the backup manifest.
 
 ## Open questions
 
-- Neon `platform-security` อยู่ใน `ops-backups/db-backup` targets แล้วหรือยัง (และมี role `db_backup` หรือไม่)
 - Neon history retention / PITR window ของ project นี้เท่าไร
-- RTO / RPO ที่ owner ต้องการสำหรับ audit log
-- restore drill รายเดือนรวม service นี้หรือยัง
+- owner ยืนยันค่า RTO / RPO ข้างบน (ตั้งจากสิ่งที่ free plan ทำได้จริง)
