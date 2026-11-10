@@ -23,7 +23,7 @@ C4Container
   Rel(api, sentry, "HTTPS envelope")
 ```
 
-Sources: `Dockerfile`, `railway.toml`, `src/platform_security/__main__.py`, `src/platform_security/migrations.py`, platform-backend-core@21d5f44 `db.py` (pool `max_size=8`), `auth.py` (`_JWKS` 60 s), `docs/runtime.md`, ops record: book-platforms-status (2026-11-03), ops record: api-gateway-edge (2026-11-03)
+Sources: `Dockerfile`, `.railway/railway.ts`, `src/platform_security/__main__.py`, `src/platform_security/migrations.py`, platform-backend-core@21d5f44 `db.py` (pool `max_size=8`), `auth.py` (`_JWKS` 60 s), `docs/runtime.md`, ops record: book-platforms-status (2026-11-03), ops record: api-gateway-edge (2026-11-03)
 
 ## Open questions
 

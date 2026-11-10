@@ -46,7 +46,7 @@ flowchart TB
 
 Health: `/healthz` = process alive (no DB); `/readyz` = DB + schema/grant/RLS/trigger checks (Railway healthcheck ใช้ตัวนี้) Serverless sleep หมายถึง request แรกหลัง idle ต้องรอ container start + Neon resume (core pool timeout 20 s, connect timeout 15 s)
 
-Sources: `railway.toml`, `Dockerfile`, `src/platform_security/__main__.py`, `src/platform_security/_sentry.py`, platform-backend-core@21d5f44 `db.py`, `http.py`, `docs/runtime.md`, ops record: book-platforms-status (2026-11-03), platform-uptime-worker `src/targets.ts`
+Sources: `.railway/railway.ts`, `Dockerfile`, `src/platform_security/__main__.py`, `src/platform_security/_sentry.py`, platform-backend-core@21d5f44 `db.py`, `http.py`, `docs/runtime.md`, ops record: book-platforms-status (2026-11-03), platform-uptime-worker `src/targets.ts`
 
 ## Open questions
 

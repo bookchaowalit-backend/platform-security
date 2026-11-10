@@ -149,7 +149,7 @@ flowchart TB
 | Lint / type | ruff, mypy (src, scripts, tests, runtime_tests) | `pyproject.toml` |
 | Image smoke | import `platform_backend_core` + app และ uid ≠ 0 | job `image` ใน `check.yml` |
 | Security baseline | shared `security.yml` | job `security` |
-| Deploy gate | Railway healthcheck `/readyz` (schema/grant/RLS/trigger) | `railway.toml` |
+| Deploy gate | Railway healthcheck `/readyz` (schema/grant/RLS/trigger) | `.railway/railway.ts` |
 
 ## 11. เอกสารลงรายละเอียด phase 07
 
@@ -186,7 +186,7 @@ flowchart TB
 
 อ่านที่ `origin/main` `29dbb06037ffd3aa2a21cc5d37bc5948e7f1245a` (2026-11-04):
 
-- `pyproject.toml`, `Dockerfile`, `railway.toml`, `.github/workflows/check.yml`, `contract.json`, `DOCPACK/docpack.yaml`
+- `pyproject.toml`, `Dockerfile`, `.railway/railway.ts`, `.github/workflows/check.yml`, `contract.json`, `DOCPACK/docpack.yaml`
 - `src/platform_security/__main__.py`, `app.py`, `store.py`, `migrations.py`, `_sentry.py`
 - `tests/test_build_hygiene.py`, `test_check.py`, `test_contract_files.py`, `test_security_contracts.py`, `runtime_tests/test_http.py`, `test_runtime.py`, `test_sentry.py`, `test_error_mapping.py`, `test_pool_reuse.py`
 - `docs/runtime.md`, `docs/gates/BOO-163-security-policy-contracts.md`, `docs/diagrams/` (README, 05, 06, 07, 16, 08-adr/*)

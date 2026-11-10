@@ -25,7 +25,7 @@ C4Context
   Rel(railway, sec, "Runs and healthchecks")
 ```
 
-Sources: `src/platform_security/__main__.py` (JWT_JWKS_URL, DATABASE_URL), `src/platform_security/_sentry.py`, `railway.toml`, `docs/runtime.md` (Sentry and first deployment), ops record: book-platforms-status (2026-11-03), ops record: api-gateway-edge (2026-11-03), platform-api-gateway `routes.json` @ `4a31ff5`, platform-uptime-worker `src/targets.ts`
+Sources: `src/platform_security/__main__.py` (JWT_JWKS_URL, DATABASE_URL), `src/platform_security/_sentry.py`, `.railway/railway.ts`, `docs/runtime.md` (Sentry and first deployment), ops record: book-platforms-status (2026-11-03), ops record: api-gateway-edge (2026-11-03), platform-api-gateway `routes.json` @ `4a31ff5`, platform-uptime-worker `src/targets.ts`
 
 หมายเหตุ: central [C4-DIAGRAMS.md](https://github.com/bookchaowalit/architecture-docs/blob/main/docs/architecture/C4-DIAGRAMS.md) ยังไม่มี security-api
 

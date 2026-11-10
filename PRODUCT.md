@@ -42,7 +42,7 @@ A boundary contract with offline evidence plus an undeployed runtime pilot:
 - The D8 `codex/shared-infrastructure-20261015` pull request (#1) was merged into `main` as
   `f92621d`; it added the runtime pilot above.
 
-Sentry waiver: Dockerfile and railway.toml are reference release assets only; no image is built or deployed anywhere, so there is no runtime to report from.
+Sentry waiver: Dockerfile and .railway/railway.ts are reference release assets only; no image is built or deployed anywhere, so there is no runtime to report from.
 
 ## Capabilities and Constraints
 

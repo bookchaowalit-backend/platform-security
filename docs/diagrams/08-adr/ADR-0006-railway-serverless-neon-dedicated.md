@@ -10,7 +10,7 @@
 - deploy ด้วย `railway up --ci` จาก `git archive main` (ops record deploy recipe) — CI ไม่มี deploy job
 
 ## Evidence
-- `Dockerfile`, `railway.toml`, `.github/workflows/check.yml` (job `image` "Nothing is pushed or deployed")
+- `Dockerfile`, `.railway/railway.ts`, `.github/workflows/check.yml` (job `image` "Nothing is pushed or deployed")
 - `docs/runtime.md` "Sentry and first deployment — 2026-11-02"
 - ops record: book-platforms-status (2026-11-03)
 

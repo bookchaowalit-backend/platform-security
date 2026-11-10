@@ -10,7 +10,7 @@ unchanged because its guard requires activation evidence.
 Python >=3.12, PostgreSQL >=16. Nothing is published to PyPI. Local editing
 uses `uv sync --frozen --all-extras`: `uv.lock` pins every dependency, with
 `platform-backend-core` taken from its reviewed Git commit (`[tool.uv.sources]`).
-`railway.toml` is a reference release asset; no Railway deployment has been
+`.railway/railway.ts` is a reference release asset; no Railway deployment has been
 executed here.
 
 ### Container image

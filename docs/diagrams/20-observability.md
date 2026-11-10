@@ -9,7 +9,7 @@
 | Request log | core `_Boundary` `_LOG.info` | `route=<template> status=<code> correlation_id=<uuid>` | Railway logs (only if INFO logging is configured) | core `http.py` |
 | `x-request-id` header | core `_Boundary` | per-request UUID (same as correlation_id) | caller | core `http.py` |
 | `/metrics` | core | `platform_http_requests_total{route,status}`, `platform_http_request_duration_seconds_sum` (in-memory, resets on restart/sleep) | **no scraper** (ops record: observability is a library, decision pending) | core `http.py` |
-| `/readyz` | core + `SecurityStore.ready` | ready / unavailable | Railway healthcheck; platform-uptime-worker hourly, sleeping set → Telegram | `railway.toml`, `src/targets.ts` |
+| `/readyz` | core + `SecurityStore.ready` | ready / unavailable | Railway healthcheck; platform-uptime-worker hourly, sleeping set → Telegram | `.railway/railway.ts`, `src/targets.ts` |
 | `/healthz` | core | ok | not used by monitors | core `http.py` |
 | uvicorn access log | disabled (`access_log=False`) | — | — | `__main__.py` |
 
@@ -32,7 +32,7 @@ flowchart LR
   TG --> OWNER
 ```
 
-Sources: `src/platform_security/_sentry.py`, `src/platform_security/app.py`, `src/platform_security/__main__.py`, platform-backend-core@21d5f44 `http.py`, `railway.toml`, platform-uptime-worker `src/targets.ts` (target `security-api` + sleeping set), [ADR-0002](https://github.com/bookchaowalit/architecture-docs/blob/main/docs/architecture/decisions/ADR-0002-production-baseline-monitoring-backups.md) (2 consecutive failures, Telegram), ops record: book-platforms-status (2026-11-03)
+Sources: `src/platform_security/_sentry.py`, `src/platform_security/app.py`, `src/platform_security/__main__.py`, platform-backend-core@21d5f44 `http.py`, `.railway/railway.ts`, platform-uptime-worker `src/targets.ts` (target `security-api` + sleeping set), [ADR-0002](https://github.com/bookchaowalit/architecture-docs/blob/main/docs/architecture/decisions/ADR-0002-production-baseline-monitoring-backups.md) (2 consecutive failures, Telegram), ops record: book-platforms-status (2026-11-03)
 
 ## Open questions
 

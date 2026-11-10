@@ -10,10 +10,10 @@
 | 02 | Use cases | done | [02-use-cases.md](02-use-cases.md) | app.py, core http.py / auth.py, ops record, uptime targets.ts |
 | 03 | User flows (API call flows) | done | [03-user-flows.md](03-user-flows.md) | app.py, store.py, __main__.py, core, test_http.py |
 | 04 | Traceability (RTM) | done | [04-traceability.md](04-traceability.md) | PRODUCT.md, runtime.md, BOO-163, tests/, runtime_tests/, check.yml |
-| 05 | C4 Context | done | [05-c4-context.md](05-c4-context.md) | __main__.py, _sentry.py, railway.toml, runtime.md, ops record |
-| 06 | C4 Container | done | [06-c4-container.md](06-c4-container.md) | Dockerfile, railway.toml, migrations.py, core db.py / auth.py |
+| 05 | C4 Context | done | [05-c4-context.md](05-c4-context.md) | __main__.py, _sentry.py, .railway/railway.ts, runtime.md, ops record |
+| 06 | C4 Container | done | [06-c4-container.md](06-c4-container.md) | Dockerfile, .railway/railway.ts, migrations.py, core db.py / auth.py |
 | 07 | C4 Component | done | [07-c4-component.md](07-c4-component.md) | src/platform_security/*.py, core http.py / auth.py / db.py |
-| 08 | ADRs (6) | done | [08-adr/](08-adr/) | pyproject.toml, uv.lock, migrations.py, app.py, _sentry.py, railway.toml, runtime.md |
+| 08 | ADRs (6) | done | [08-adr/](08-adr/) | pyproject.toml, uv.lock, migrations.py, app.py, _sentry.py, .railway/railway.ts, runtime.md |
 | 09 | ERD | done | [09-erd.md](09-erd.md) | migrations.py, store.py, core migrations.py / db.py, runtime.md |
 | 10 | Sequences | done | [10-sequences.md](10-sequences.md) | app.py, store.py, __main__.py, core |
 | 11 | State machines | done | [11-state-machines.md](11-state-machines.md) | store.py, migrations.py, tenant.schema.json |
@@ -21,11 +21,11 @@
 | 13 | Threat model (DFD + STRIDE) | done | [13-threat-model.md](13-threat-model.md) | src, core, check.yml, ci-workflows security.yml, BOO-163 |
 | 14 | Backup / DR | done | [14-backup-dr.md](14-backup-dr.md) | migrations.py, runtime.md, central ADR-0002, ops record |
 | 15 | CI/CD pipeline | done | [15-cicd-pipeline.md](15-cicd-pipeline.md) | check.yml, ci-workflows@87dc5e1 ci-python.yml / security.yml, check.sh |
-| 16 | Deployment | done | [16-deployment.md](16-deployment.md) | railway.toml, Dockerfile, __main__.py, _sentry.py, runtime.md, ops record |
+| 16 | Deployment | done | [16-deployment.md](16-deployment.md) | .railway/railway.ts, Dockerfile, __main__.py, _sentry.py, runtime.md, ops record |
 | 17 | Test coverage matrix | done | [17-test-coverage-matrix.md](17-test-coverage-matrix.md) | tests/*.py, runtime_tests/*.py, pyproject.toml, check.yml |
 | 18 | Git / release workflow | done | [18-git-release-workflow.md](18-git-release-workflow.md) | git log, gh pr list, gh run list, check.yml, runtime.md |
 | 19 | Service dependency map | done | [19-service-dependency-map.md](19-service-dependency-map.md) | contract.json, pyproject.toml, uv.lock, Dockerfile, core |
-| 20 | Observability | done | [20-observability.md](20-observability.md) | _sentry.py, core http.py, railway.toml, uptime targets.ts |
+| 20 | Observability | done | [20-observability.md](20-observability.md) | _sentry.py, core http.py, .railway/railway.ts, uptime targets.ts |
 | 21 | Incident response | done | [21-incident-response.md](21-incident-response.md) | uptime targets.ts, ADR-0002, store.py ready(), runtime.md |
 | 22 | DORA | done (proxies; deploys not in git) | [22-dora.md](22-dora.md) | git log, gh pr list, gh run list, runtime.md |
 

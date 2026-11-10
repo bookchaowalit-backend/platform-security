@@ -44,7 +44,7 @@ flowchart LR
   I --> J["Uptime worker hourly /readyz"]
 ```
 
-Sources: `git log --merges origin/main`, `gh pr list --state merged`, `gh run list` (branches `sentry`, `jwt-tail`, …), `.github/workflows/check.yml`, `docs/runtime.md` ("Deployed (owner go 2026-11-02)"), `railway.toml`, ops record: book-platforms-status (2026-11-03) (deploy recipe)
+Sources: `git log --merges origin/main`, `gh pr list --state merged`, `gh run list` (branches `sentry`, `jwt-tail`, …), `.github/workflows/check.yml`, `docs/runtime.md` ("Deployed (owner go 2026-11-02)"), `.railway/railway.ts`, ops record: book-platforms-status (2026-11-03) (deploy recipe)
 
 ## Open questions
 

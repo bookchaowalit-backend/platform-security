@@ -106,4 +106,4 @@ sequenceDiagram
   Note over SV: any config error exits with a generic message
 ```
 
-Sources: `src/platform_security/app.py`, `src/platform_security/store.py`, `src/platform_security/__main__.py`, `src/platform_security/migrations.py`, platform-backend-core@21d5f44 `http.py`, `auth.py`, `db.py`, `migrations.py`, `docs/runtime.md`, `railway.toml`, ops record: book-platforms-status (2026-11-03)
+Sources: `src/platform_security/app.py`, `src/platform_security/store.py`, `src/platform_security/__main__.py`, `src/platform_security/migrations.py`, platform-backend-core@21d5f44 `http.py`, `auth.py`, `db.py`, `migrations.py`, `docs/runtime.md`, `.railway/railway.ts`, ops record: book-platforms-status (2026-11-03)

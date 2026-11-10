@@ -33,7 +33,7 @@ flowchart TD
 
 ตัวอย่างจริงของ "fix-forward" อยู่ใน `docs/runtime.md` (เช่น review rounds PR #4–#14 Sentry, readiness regression 2026-10-15) แต่ไม่ใช่ production incident
 
-Sources: platform-uptime-worker `src/targets.ts`, [ADR-0002](https://github.com/bookchaowalit/architecture-docs/blob/main/docs/architecture/decisions/ADR-0002-production-baseline-monitoring-backups.md), `src/platform_security/_sentry.py`, `src/platform_security/store.py` (`ready`), platform-backend-core@21d5f44 `http.py`, `auth.py`, `railway.toml`, `docs/runtime.md` (rollback paragraph), ops record: book-platforms-status (2026-11-03)
+Sources: platform-uptime-worker `src/targets.ts`, [ADR-0002](https://github.com/bookchaowalit/architecture-docs/blob/main/docs/architecture/decisions/ADR-0002-production-baseline-monitoring-backups.md), `src/platform_security/_sentry.py`, `src/platform_security/store.py` (`ready`), platform-backend-core@21d5f44 `http.py`, `auth.py`, `.railway/railway.ts`, `docs/runtime.md` (rollback paragraph), ops record: book-platforms-status (2026-11-03)
 
 ## Open questions
 
