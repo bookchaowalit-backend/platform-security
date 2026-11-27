@@ -2,6 +2,8 @@
 
 `platform-security` เป็น backend platform service ของ Book Platform ที่ถือ capability `security` (secret references, policy, audit, WAF controls, privacy ตาม `contract.json`) ส่วนที่มี runtime จริงคือ API สำหรับเก็บ **metadata ของ secret reference** (ไม่ใช่ค่า secret) และ **audit log แบบ append-only** ต่อ workspace
 
+Last reviewed: 2026-11-27 · commit `4515f29`
+
 ## As-Is (จาก code วันนี้)
 
 กระบวนการจริงมีสองเส้น: (1) ผู้เรียกที่ถือ token ของ platform-identity บันทึก/อ่าน secret reference และ audit event; (2) ฝั่ง operator รัน `migrate` แยกจาก `serve` แล้วให้ runtime role ที่ไม่ใช่ owner ใช้งาน ส่วน contract BOO-163 (tenant, permission, privacy) ถูกตรวจแบบ offline ใน CI เท่านั้น ยังไม่มี runtime บังคับใช้
@@ -48,6 +50,17 @@ flowchart LR
 ```
 
 Sources: `PRODUCT.md`, `README.md` (Migration gate), `contract.json`, `docs/gates/BOO-163-security-policy-contracts.md`
+
+## Gap
+
+| ID | As-Is → To-Be | Status | Owner | Evidence |
+|---|---|---|---|---|
+| G1 | runtime รับ provider `env`/`vault`/`aws` และ audit field เดิม → ตรง contract BOO-163 (provider `infisical`, `#version`, `outcome`/`privacy_class`/`prev_hash`) | todo | claude | `docs/gates/BOO-163-security-policy-contracts.md` G1; `src/platform_security/store.py` |
+| G2 | ไม่มี shadow parity และ rollback rehearsal → มีหลักฐานก่อน cutover | todo | claude | `contract.json` `migration.shadow_parity`, `README.md` §Migration gate |
+| G3 | consumers ยังใช้ implementation เดิม, status `scaffolded`, cutover `pending` → consumers ใช้ security-api | decide | owner | `PRODUCT.md` (cutover criteria [ต้องยืนยัน]); ไม่มี To-Be ที่เขียนไว้นอกจากเงื่อนไขทั่วไป |
+| G4 | `waf-controls` ไม่มี contract → มี contract | decide | owner | `docs/gates/BOO-163-security-policy-contracts.md` G5; ไม่มี To-Be ที่เขียนไว้ |
+| G5 | registry `source_paths` ชี้ `solo-empire:infra/platform` ที่ไม่มีแล้ว → registry ตรงความจริง | todo | claude | `docs/gates/BOO-163-security-policy-contracts.md` G2 |
+| G6 | PRODUCT.md/README บอก undeployed → ตรงกับ `docs/runtime.md` (deployed 2026-11-02) | todo | claude | `PRODUCT.md` Positioning vs `docs/runtime.md` §Sentry and first deployment |
 
 ## Open questions
 
